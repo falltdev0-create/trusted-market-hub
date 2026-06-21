@@ -138,9 +138,9 @@ function Dashboard() {
             </div>
           </div>
           <button
-            disabled={kycStatus === "pending" || startKyc.isPending}
-            onClick={() => startKyc.mutate()}
-            className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 font-bold text-primary-foreground hover:bg-primary-light disabled:opacity-60"
+          disabled={kycStatus === "pending" || startKyc.isPending}
+          onClick={() => nav({ to: "/verification" })}
+          className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 font-bold text-primary-foreground hover:bg-primary-light disabled:opacity-60"
           >
             {startKyc.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
             {kycStatus === "pending" ? (
@@ -167,7 +167,7 @@ function Dashboard() {
         >
           <Home className="h-12 w-12 opacity-90" />
           <h2 className="mt-4 text-2xl font-extrabold">أنا بائع</h2>
-          <p className="mt-2 text-white/90">أريد بيع أو تأجير عقار أو سيارة</p>
+          <p className="mt-2 text-white/90">أريد بيع أو تأجير عقار </p>
           <span className="mt-6 inline-flex items-center gap-2 rounded-lg bg-accent px-5 py-2.5 font-bold text-accent-foreground">
             ابدأ الآن <ArrowLeft className="h-4 w-4" />
           </span>
@@ -179,7 +179,7 @@ function Dashboard() {
         >
           <Search className="h-12 w-12 text-primary" />
           <h2 className="mt-4 text-2xl font-extrabold">أنا مشتري</h2>
-          <p className="mt-2 text-muted-foreground">أريد شراء أو إيجار عقار أو سيارة</p>
+          <p className="mt-2 text-muted-foreground">أريد شراء أو إيجار عقار  </p>
           <span className="mt-6 inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 font-bold text-primary-foreground">
             تصفح المعرض <ArrowLeft className="h-4 w-4" />
           </span>

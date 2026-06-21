@@ -106,7 +106,7 @@ export function Navbar() {
                   <DropdownMenuItem onClick={() => navigate({ to: "/my-listings" })}>
                     <ListChecks className="ms-2 h-4 w-4" /> إعلاناتي
                   </DropdownMenuItem>
-                  <DropdownMenuItem disabled>
+                  <DropdownMenuItem onClick={() => navigate({ to: "/settings" })}>
                     <Settings className="ms-2 h-4 w-4" /> الإعدادات
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />

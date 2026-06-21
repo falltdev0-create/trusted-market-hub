@@ -9,6 +9,8 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as VerificationRouteImport } from './routes/verification'
+import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as NotificationsRouteImport } from './routes/notifications'
 import { Route as MyListingsRouteImport } from './routes/my-listings'
@@ -26,6 +28,16 @@ import { Route as SellDetailsRouteImport } from './routes/sell.details'
 import { Route as ListingIdRouteImport } from './routes/listing.$id'
 import { Route as ChatConversationIdRouteImport } from './routes/chat.$conversationId'
 
+const VerificationRoute = VerificationRouteImport.update({
+  id: '/verification',
+  path: '/verification',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RegisterRoute = RegisterRouteImport.update({
   id: '/register',
   path: '/register',
@@ -117,6 +129,8 @@ export interface FileRoutesByFullPath {
   '/my-listings': typeof MyListingsRoute
   '/notifications': typeof NotificationsRoute
   '/register': typeof RegisterRoute
+  '/settings': typeof SettingsRoute
+  '/verification': typeof VerificationRoute
   '/chat/$conversationId': typeof ChatConversationIdRoute
   '/listing/$id': typeof ListingIdRoute
   '/sell/details': typeof SellDetailsRoute
@@ -135,6 +149,8 @@ export interface FileRoutesByTo {
   '/my-listings': typeof MyListingsRoute
   '/notifications': typeof NotificationsRoute
   '/register': typeof RegisterRoute
+  '/settings': typeof SettingsRoute
+  '/verification': typeof VerificationRoute
   '/chat/$conversationId': typeof ChatConversationIdRoute
   '/listing/$id': typeof ListingIdRoute
   '/sell/details': typeof SellDetailsRoute
@@ -154,6 +170,8 @@ export interface FileRoutesById {
   '/my-listings': typeof MyListingsRoute
   '/notifications': typeof NotificationsRoute
   '/register': typeof RegisterRoute
+  '/settings': typeof SettingsRoute
+  '/verification': typeof VerificationRoute
   '/chat/$conversationId': typeof ChatConversationIdRoute
   '/listing/$id': typeof ListingIdRoute
   '/sell/details': typeof SellDetailsRoute
@@ -174,6 +192,8 @@ export interface FileRouteTypes {
     | '/my-listings'
     | '/notifications'
     | '/register'
+    | '/settings'
+    | '/verification'
     | '/chat/$conversationId'
     | '/listing/$id'
     | '/sell/details'
@@ -192,6 +212,8 @@ export interface FileRouteTypes {
     | '/my-listings'
     | '/notifications'
     | '/register'
+    | '/settings'
+    | '/verification'
     | '/chat/$conversationId'
     | '/listing/$id'
     | '/sell/details'
@@ -210,6 +232,8 @@ export interface FileRouteTypes {
     | '/my-listings'
     | '/notifications'
     | '/register'
+    | '/settings'
+    | '/verification'
     | '/chat/$conversationId'
     | '/listing/$id'
     | '/sell/details'
@@ -229,6 +253,8 @@ export interface RootRouteChildren {
   MyListingsRoute: typeof MyListingsRoute
   NotificationsRoute: typeof NotificationsRoute
   RegisterRoute: typeof RegisterRoute
+  SettingsRoute: typeof SettingsRoute
+  VerificationRoute: typeof VerificationRoute
   ChatConversationIdRoute: typeof ChatConversationIdRoute
   ListingIdRoute: typeof ListingIdRoute
   SellDetailsRoute: typeof SellDetailsRoute
@@ -240,6 +266,20 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/verification': {
+      id: '/verification'
+      path: '/verification'
+      fullPath: '/verification'
+      preLoaderRoute: typeof VerificationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/register': {
       id: '/register'
       path: '/register'
@@ -365,6 +405,8 @@ const rootRouteChildren: RootRouteChildren = {
   MyListingsRoute: MyListingsRoute,
   NotificationsRoute: NotificationsRoute,
   RegisterRoute: RegisterRoute,
+  SettingsRoute: SettingsRoute,
+  VerificationRoute: VerificationRoute,
   ChatConversationIdRoute: ChatConversationIdRoute,
   ListingIdRoute: ListingIdRoute,
   SellDetailsRoute: SellDetailsRoute,
