@@ -7,7 +7,7 @@ import { useListingStore } from "@/stores/listing";
 import { verificationApi } from "@/lib/api";
 
 export const Route = createFileRoute("/sell/upload-docs")({
-  head: () => ({ meta: [{ title: "وثائق الملكية — معاملاتي" }] }),
+  head: () => ({ meta: [{ title: "وثائق الملكية — مسكن" }] }),
   component: UploadDocs,
 });
 

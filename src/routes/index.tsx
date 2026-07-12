@@ -10,12 +10,12 @@ import { MOCK_LISTINGS } from "@/lib/mock-data";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "معاملاتي — منصة التعاملات الموثوقة للعقارات والسيارات" },
+      { title: "مسكن — منصة التعاملات الموثوقة للعقارات والسيارات" },
       {
         name: "description",
-        content: "معاملاتي — منصة موثوقة لبيع وتأجير العقارات والسيارات بضمان التحقق من الهوية والملكية.",
+        content: "مسكن — منصة موثوقة لبيع وتأجير العقارات والسيارات بضمان التحقق من الهوية والملكية.",
       },
-      { property: "og:title", content: "معاملاتي — منصة التعاملات الموثوقة" },
+      { property: "og:title", content: "مسكن — منصة التعاملات الموثوقة" },
       { property: "og:description", content: "ثق، تعامل، اطمئن — وسيط ذكي موثوق." },
     ],
   }),
@@ -107,7 +107,7 @@ function Home() {
         <div className="mt-12 grid gap-6 md:grid-cols-4">
           {[
             { i: UserPlus, t: "سجل وأنشئ حسابك", d: "أنشئ حسابك خلال دقيقة واحدة" },
-            { i: Camera, t: "ارفع السلعة وصورها", d: "صور واضحة من زوايا متعددة" },
+            { i: Camera, t: "ارفع العقار وصورها", d: "صور واضحة من زوايا متعددة" },
             { i: Bot, t: "تحقق AI من الحالة", d: "تقييم آلي للحالة والوثائق" },
             { i: CheckCircle2, t: "انشر وتواصل بأمان", d: "محادثات داخل المنصة فقط" },
           ].map((s, idx, arr) => (
@@ -132,7 +132,7 @@ function Home() {
       <section className="bg-secondary/40">
         <div className="mx-auto max-w-7xl px-4 py-20">
           <div className="text-center">
-            <h2 className="text-3xl font-extrabold">لماذا معاملاتي؟</h2>
+            <h2 className="text-3xl font-extrabold">لماذا مسكن؟</h2>
             <div className="mx-auto mt-2 h-1 w-20 rounded-full bg-accent" />
           </div>
           <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
@@ -267,7 +267,7 @@ function Home() {
           <ShieldCheck className="absolute -top-6 -right-6 h-40 w-40 text-white/10" />
           <h2 className="text-3xl font-extrabold md:text-4xl">جاهز للبيع أو الشراء؟</h2>
           <p className="mx-auto mt-3 max-w-xl text-sm md:text-base">
-            انضم لآلاف المستخدمين الذين يثقون بمعاملاتي
+            انضم لآلاف المستخدمين الذين يثقون بمسكن
           </p>
           <Link
             to="/register"

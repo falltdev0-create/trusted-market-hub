@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { useAuthStore } from "@/stores/auth";
 
 export const Route = createFileRoute("/login")({
-  head: () => ({ meta: [{ title: "تسجيل الدخول — معاملاتي" }] }),
+  head: () => ({ meta: [{ title: "تسجيل الدخول — مسكن" }] }),
   component: Login,
 });
 

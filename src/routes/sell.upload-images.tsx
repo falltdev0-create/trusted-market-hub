@@ -7,7 +7,7 @@ import { useListingStore } from "@/stores/listing";
 import { uploadApi } from "@/lib/api";
 
 export const Route = createFileRoute("/sell/upload-images")({
-  head: () => ({ meta: [{ title: "رفع الصور — معاملاتي" }] }),
+  head: () => ({ meta: [{ title: "رفع الصور — مسكن" }] }),
   component: UploadImages,
 });
 
@@ -219,8 +219,8 @@ function UploadImages() {
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">
       <StepProgress current={2} total={6} label="رفع الصور" />
-      <h1 className="mb-2 text-3xl font-bold">ارفع صور السلعة</h1>
-      <p className="mb-6 text-muted-foreground">ارفع من 5 إلى 20 صورة — داخل وخارج السلعة</p>
+      <h1 className="mb-2 text-3xl font-bold">ارفع صور العقار</h1>
+      <p className="mb-6 text-muted-foreground">ارفع من 5 إلى 20 صورة — داخل وخارج العقار</p>
 
       <div
         onClick={() => fileRef.current?.click()}

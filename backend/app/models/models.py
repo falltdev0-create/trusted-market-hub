@@ -88,6 +88,7 @@ class User(Base):
     is_active            = Column(Boolean, default=True)
     avatar_url           = Column(String(500), nullable=True)
     kyc_status           = Column(Enum(KYCStatus), default=KYCStatus.pending)
+    selfie_url           = Column(String(500), nullable=True)
     kyc_doc_url          = Column(String(500), nullable=True)
     disclaimer_signed    = Column(Boolean, default=False)
     disclaimer_signed_at = Column(DateTime, nullable=True)

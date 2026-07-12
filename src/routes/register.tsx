@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { useAuthStore } from "@/stores/auth";
 
 export const Route = createFileRoute("/register")({
-  head: () => ({ meta: [{ title: "إنشاء حساب — معاملاتي" }] }),
+  head: () => ({ meta: [{ title: "إنشاء حساب — مسكن" }] }),
   component: Register,
 });
 
@@ -62,7 +62,7 @@ function Register() {
     <div className="grid min-h-[calc(100vh-4rem)] grid-cols-1 lg:grid-cols-2">
       <div className="hidden bg-gradient-to-bl from-primary to-primary-light p-12 text-primary-foreground lg:flex lg:flex-col lg:justify-center">
         <Shield className="h-12 w-12" />
-        <h2 className="mt-6 text-4xl font-extrabold">انضم لمنصة معاملاتي</h2>
+        <h2 className="mt-6 text-4xl font-extrabold">انضم لمنصة مسكن</h2>
         <p className="mt-3 max-w-md text-white/90">
           مجتمع موثّق من البائعين والمشترين. كل صفقة محمية وكل بائع موثّق بهويته.
         </p>
@@ -86,7 +86,7 @@ function Register() {
         <form onSubmit={handleSubmit} className="w-full max-w-md space-y-5">
           <div>
             <h1 className="text-3xl font-bold">إنشاء حساب جديد</h1>
-            <p className="mt-1 text-sm text-muted-foreground">ابدأ رحلتك في معاملاتي</p>
+            <p className="mt-1 text-sm text-muted-foreground">ابدأ رحلتك في مسكن</p>
           </div>
 
           {(

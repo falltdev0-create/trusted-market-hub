@@ -7,8 +7,8 @@ import {
 export const Route = createFileRoute("/how-it-works")({
   head: () => ({
     meta: [
-      { title: "كيف يعمل — معاملاتي" },
-      { name: "description", content: "تعرف على خطوات البيع والشراء عبر معاملاتي بضمان وأمان كامل." },
+      { title: "كيف يعمل — مسكن" },
+      { name: "description", content: "تعرف على خطوات البيع والشراء عبر مسكن بضمان وأمان كامل." },
     ],
   }),
   component: HowItWorks,
@@ -18,7 +18,7 @@ function HowItWorks() {
   return (
     <div className="mx-auto max-w-5xl px-4 py-14">
       <header className="text-center">
-        <h1 className="text-4xl font-extrabold">كيف يعمل معاملاتي</h1>
+        <h1 className="text-4xl font-extrabold">كيف يعمل مسكن</h1>
         <p className="mx-auto mt-3 max-w-2xl text-muted-foreground">
           منصة وسيطة موثوقة — نتحقق من كل بائع، كل وثيقة، وكل صفقة.
         </p>
@@ -51,7 +51,7 @@ function HowItWorks() {
             { i: Search, t: "1. تصفح المعرض", d: "آلاف الإعلانات الموثقة." },
             { i: ShieldCheck, t: "2. تحقق من الموثوقية", d: "كل إعلان مدقق بالكامل." },
             { i: MessageSquare, t: "3. تواصل عبر المنصة", d: "محادثة آمنة مع البائع." },
-            { i: CheckCircle2, t: "4. أتمم الصفقة بأمان", d: "بضمان معاملاتي." },
+            { i: CheckCircle2, t: "4. أتمم الصفقة بأمان", d: "بضمان مسكن." },
           ].map((s) => (
             <div key={s.t} className="rounded-xl border bg-card p-5">
               <s.i className="h-8 w-8 text-primary" />

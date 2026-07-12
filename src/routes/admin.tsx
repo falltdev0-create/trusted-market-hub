@@ -1,3 +1,4 @@
+// src/routes/admin.tsx
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import {
@@ -14,7 +15,7 @@ import { useAuthStore } from "@/stores/auth";
 import { MOCK_LISTINGS } from "@/lib/mock-data";
 
 export const Route = createFileRoute("/admin")({
-  head: () => ({ meta: [{ title: "لوحة الإدارة — معاملاتي" }] }),
+  head: () => ({ meta: [{ title: "لوحة الإدارة — مسكن" }] }),
   component: Admin,
 });
 
@@ -24,6 +25,7 @@ const NAV = [
   { id: "approved", label: "الإعلانات المنشورة", icon: CheckCircle2 },
   { id: "rejected", label: "المرفوضة", icon: XCircle },
   { id: "users", label: "المستخدمون", icon: Users },
+  { id: "verification", label: "طلبات التحقق", icon: ShieldCheck },
 ] as const;
 
 function Admin() {
@@ -61,19 +63,24 @@ function Admin() {
           </ul>
         </aside>
 
-        <main>
-          {reviewing ? (
-            <ReviewListing id={reviewing} onClose={() => setReviewing(null)} />
-          ) : tab === "dash" ? (
-            <Dash />
-          ) : tab === "pending" ? (
-            <PendingList onOpen={setReviewing} />
-          ) : (
-            <div className="rounded-2xl border bg-card p-12 text-center text-muted-foreground">
-              قسم {NAV.find((n) => n.id === tab)?.label} — تجريبي
-            </div>
-          )}
-        </main>
+       <main>
+  {reviewing ? (
+    <ReviewListing
+      id={reviewing}
+      onClose={() => setReviewing(null)}
+    />
+  ) : tab === "dash" ? (
+    <Dash />
+  ) : tab === "pending" ? (
+    <PendingList onOpen={setReviewing} />
+  ) : tab === "verification" ? (
+    <VerificationRequests />
+  ) : (
+    <div className="rounded-2xl border bg-card p-12 text-center text-muted-foreground">
+      قسم {NAV.find((n) => n.id === tab)?.label} — تجريبي
+    </div>
+  )}
+</main>
       </div>
     </div>
   );
@@ -108,6 +115,83 @@ function Dash() {
         ].map((t, i) => (
           <div key={i} className="border-b py-2 text-sm last:border-0">
             {t}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function VerificationRequests() {
+  const requests = [
+    {
+      id: "1",
+      user: "محمد أحمد",
+      document:
+        "https://via.placeholder.com/500x300.png?text=National+ID",
+      status: "pending",
+    },
+    {
+      id: "2",
+      user: "أحمد علي",
+      document:
+        "https://via.placeholder.com/500x300.png?text=Passport",
+      status: "pending",
+    },
+  ];
+
+  function approve(id: string) {
+    toast.success("تم قبول طلب التحقق");
+  }
+
+  function reject(id: string) {
+    toast.error("تم رفض طلب التحقق");
+  }
+
+  return (
+    <div>
+      <h1 className="mb-6 text-3xl font-bold">
+        طلبات التحقق
+      </h1>
+
+      <div className="space-y-4">
+        {requests.map((r) => (
+          <div
+            key={r.id}
+            className="rounded-xl border bg-card p-5"
+          >
+            <div className="flex flex-col gap-4 lg:flex-row">
+              <img
+                src={r.document}
+                className="h-52 rounded-lg object-cover"
+              />
+
+              <div className="flex-1">
+                <h2 className="text-xl font-bold">
+                  {r.user}
+                </h2>
+
+                <p className="mt-2 text-muted-foreground">
+                  بانتظار مراجعة الهوية.
+                </p>
+
+                <div className="mt-6 flex gap-3">
+                  <button
+                    onClick={() => approve(r.id)}
+                    className="rounded-lg bg-success px-5 py-2 text-success-foreground"
+                  >
+                    قبول
+                  </button>
+
+                  <button
+                    onClick={() => reject(r.id)}
+                    className="rounded-lg bg-destructive px-5 py-2 text-destructive-foreground"
+                  >
+                    رفض
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         ))}
       </div>

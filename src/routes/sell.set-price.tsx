@@ -7,7 +7,7 @@ import { useListingStore } from "@/stores/listing";
 import { listingsApi } from "@/lib/api";
 
 export const Route = createFileRoute("/sell/set-price")({
-  head: () => ({ meta: [{ title: "تحديد السعر — معاملاتي" }] }),
+  head: () => ({ meta: [{ title: "تحديد السعر — مسكن" }] }),
   component: SetPrice,
 });
 

@@ -12,6 +12,28 @@ from app.core.config import settings
 
 class StorageService:
 
+    async def upload_kyc_document(self,content: bytes,filename: str,user_id: str,doc_type: str,) -> str:
+
+            ext = self._ext(filename, "jpg")
+
+            key = f"kyc/{user_id}/{doc_type}_{uuid.uuid4().hex}.{ext}"
+
+            content_type = (
+                "application/pdf"
+                if ext == "pdf"
+                else f"image/{ext}"
+            )
+
+            self.client.put_object(
+                settings.STORAGE_BUCKET_DOCS,
+                key,
+                io.BytesIO(content),
+                length=len(content),
+                content_type=content_type,
+            )
+
+            return self._url(settings.STORAGE_BUCKET_DOCS, key)
+
     @cached_property
     def client(self):
         from minio import Minio
@@ -57,6 +79,8 @@ class StorageService:
     @staticmethod
     def _url(bucket: str, key: str) -> str:
         return f"http://{settings.STORAGE_ENDPOINT}/{bucket}/{key}"
+    
+    
 
 
 # Singleton

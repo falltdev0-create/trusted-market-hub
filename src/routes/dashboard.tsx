@@ -12,7 +12,7 @@ import { useAuthStore } from "@/stores/auth";
 import { usersApi, tryApi } from "@/lib/api";
 
 export const Route = createFileRoute("/dashboard")({
-  head: () => ({ meta: [{ title: "لوحة التحكم — معاملاتي" }] }),
+  head: () => ({ meta: [{ title: "لوحة التحكم — مسكن" }] }),
   component: Dashboard,
 });
 

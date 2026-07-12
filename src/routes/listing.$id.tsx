@@ -22,7 +22,7 @@ export const Route = createFileRoute("/listing/$id")({
     const l = MOCK_LISTINGS.find((x) => x.id === params.id);
     return {
       meta: [
-        { title: l ? `${l.title} — معاملاتي` : "إعلان — معاملاتي" },
+        { title: l ? `${l.title} — مسكن` : "إعلان — مسكن" },
         { name: "description", content: l?.title ?? "إعلان موثّق" },
         { property: "og:image", content: l?.image ?? "" },
       ],
@@ -252,7 +252,7 @@ function ListingDetail() {
           <div className="text-lg font-extrabold text-primary">
             {l.price.toLocaleString()} <span className="text-xs font-normal">جنيه</span>
           </div>
-          <div className="text-[11px] text-muted-foreground">تحت مظلة معاملاتي</div>
+          <div className="text-[11px] text-muted-foreground">تحت مظلة مسكن</div>
         </div>
         <button
           onClick={() => setModalOpen(true)}
@@ -275,7 +275,7 @@ function ListingDetail() {
             <div className="mt-4 space-y-3 text-sm text-foreground">
               <p>بموجب هذا الإقرار، أنت توافق على أن:</p>
               <ol className="list-decimal space-y-2 pe-5">
-                <li>منصة معاملاتي تتحقق من هوية البائع وملكيته للسلعة فقط.</li>
+                <li>منصة مسكن تتحقق من هوية البائع وملكيته للسلعة فقط.</li>
                 <li>
                   المنصة غير مسؤولة عن أي خسارة ناتجة عن الدفع قبل معاينة السلعة ميدانياً والتأكد
                   منها.

@@ -5,7 +5,7 @@ import { useListingStore } from "@/stores/listing";
 import { CITIES, CAR_BRANDS } from "@/lib/mock-data";
 
 export const Route = createFileRoute("/sell/details")({
-  head: () => ({ meta: [{ title: "بيانات الإعلان — معاملاتي" }] }),
+  head: () => ({ meta: [{ title: "بيانات الإعلان — مسكن" }] }),
   component: Details,
 });
 

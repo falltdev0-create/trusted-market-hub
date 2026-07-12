@@ -4,7 +4,7 @@ import { Send, BadgeCheck, AlertTriangle } from "lucide-react";
 import { MOCK_LISTINGS } from "@/lib/mock-data";
 
 export const Route = createFileRoute("/chat/$conversationId")({
-  head: () => ({ meta: [{ title: "محادثة — معاملاتي" }] }),
+  head: () => ({ meta: [{ title: "محادثة — مسكن" }] }),
   component: Chat,
 });
 

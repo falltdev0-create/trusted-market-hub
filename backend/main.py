@@ -1,8 +1,8 @@
 """
-معاملاتي — Backend Entry Point
+مسكن — Backend Entry Point
 FastAPI + PostgreSQL Async + WebSocket Chat + AI Pipeline
 """
-
+from app.api.routes import kyc
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -51,6 +51,7 @@ app.include_router(chat.router,         prefix=f"{V1}/chat",         tags=["Chat
 app.include_router(search.router,       prefix=f"{V1}/search",       tags=["Search"])
 app.include_router(admin.router,        prefix=f"{V1}/admin",        tags=["Admin"])
 app.include_router(upload.router,       prefix=f"{V1}/upload",       tags=["Upload"])
+app.include_router(kyc.router,          prefix=f"{V1}/kyc",          tags=["KYC"])
 
 
 @app.get("/health")

@@ -7,15 +7,14 @@ import { StepProgress } from "@/components/StepProgress";
 import { listingsApi, tryApi } from "@/lib/api";
 
 export const Route = createFileRoute("/sell/new")({
-  head: () => ({ meta: [{ title: "نوع الإعلان — معاملاتي" }] }),
+  head: () => ({ meta: [{ title: "نوع الإعلان — مسكن" }] }),
   component: SellNew,
 });
 
 const KINDS: { k: ListingKind; icon: any; title: string; desc: string }[] = [
   { k: "sale_property", icon: Home, title: "بيع عقار", desc: "بع شقتك أو فيلتك بأمان" },
   { k: "rent_property", icon: Key, title: "تأجير عقار", desc: "أجر عقارك شهرياً أو سنوياً" },
-  { k: "sale_car", icon: Car, title: "بيع سيارة", desc: "بع سيارتك بأفضل سعر" },
-  { k: "rent_car", icon: CarFront, title: "تأجير سيارة", desc: "أجر سيارتك يومياً أو شهرياً" },
+  
 ];
 
 function SellNew() {

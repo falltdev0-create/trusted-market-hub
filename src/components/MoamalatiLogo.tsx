@@ -47,7 +47,7 @@ export function MoamalatiLogo({ variant = "full", size = 36, className = "", sho
     <span className={`inline-flex items-center gap-2 ${className}`}>
       {icon}
       <span className="flex flex-col leading-tight">
-        <span className="text-xl font-extrabold text-primary">معاملاتي</span>
+        <span className="text-xl font-extrabold text-primary">مسكن</span>
         {showTagline && (
           <span className="text-[11px] text-muted-foreground">ثق، تعامل، اطمئن</span>
         )}

@@ -3,7 +3,7 @@ import { Plus, Eye, Pencil, Trash2 } from "lucide-react";
 import { MOCK_LISTINGS } from "@/lib/mock-data";
 
 export const Route = createFileRoute("/my-listings")({
-  head: () => ({ meta: [{ title: "إعلاناتي — معاملاتي" }] }),
+  head: () => ({ meta: [{ title: "إعلاناتي — مسكن" }] }),
   component: MyListings,
 });
 

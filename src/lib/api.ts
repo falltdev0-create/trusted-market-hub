@@ -1,5 +1,6 @@
 import axios from "axios";
 
+
 export const API_BASE_URL =
   (typeof window !== "undefined" && (window as any).__API_BASE__) ||
   "http://localhost:8000/api/v1";
@@ -47,7 +48,13 @@ export const authApi = {
 
 export const usersApi = {
   me: () => api.get("/users/me"),
-  startKyc: () => api.post("/users/me/kyc/start"),
+
+  submitKYC: (formData: FormData) =>
+  api.post("/kyc/submit", formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  }),
 };
 
 export const listingsApi = {
@@ -94,3 +101,4 @@ export const adminApi = {
   rejectListing: (listingId: string, adminId: string, reason: string) =>
     api.post("/admin/reject-listing", { listing_id: listingId, admin_id: adminId, reason }),
 };
+

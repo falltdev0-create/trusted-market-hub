@@ -4,7 +4,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 const LABELS = {
   identity: { label: "هوية موثّقة", desc: "تم التحقق من الهوية الوطنية للبائع." },
   ownership: { label: "ملكية موثّقة", desc: "تم التحقق من مستندات ملكية السلعة." },
-  full: { label: "موثّق بالكامل", desc: "الهوية والملكية تم توثيقهما من قبل معاملاتي." },
+  full: { label: "موثّق بالكامل", desc: "الهوية والملكية تم توثيقهما من قبل مسكن." },
 } as const;
 
 export function VerifiedBadge({

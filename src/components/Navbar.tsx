@@ -43,7 +43,7 @@ export function Navbar() {
   return (
     <header className="sticky top-0 z-40 w-full border-b bg-card/95 backdrop-blur">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4">
-        <Link to="/" aria-label="معاملاتي">
+        <Link to="/" aria-label="مسكن">
           <MoamalatiLogo />
         </Link>
 

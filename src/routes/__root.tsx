@@ -68,7 +68,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "معاملاتي — منصة العقارات والسيارات الموثوقة" },
+      { title: "مسكن — منصة العقارات والسيارات الموثوقة" },
       {
         name: "description",
         content: "منصة سودانية موثوقة للوساطة في بيع وتأجير العقارات والسيارات.",

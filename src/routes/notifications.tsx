@@ -8,7 +8,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { useAuthStore } from "@/stores/auth";
 
 export const Route = createFileRoute("/notifications")({
-  head: () => ({ meta: [{ title: "الإشعارات — معاملاتي" }] }),
+  head: () => ({ meta: [{ title: "الإشعارات — مسكن" }] }),
   component: NotificationsPage,
 });
 
