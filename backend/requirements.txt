@@ -3,6 +3,7 @@ uvicorn[standard]==0.30.0
 sqlalchemy[asyncio]==2.0.30
 aiosqlite==0.22.1
 asyncpg==0.29.0
+<<<<<<< HEAD
 aiomysql==0.2.0
 PyMySQL==1.1.0
 pydantic==2.7.0
@@ -11,6 +12,12 @@ email-validator==2.1.1
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
 bcrypt==4.0.1
+=======
+pydantic==2.7.0
+pydantic-settings==2.3.0
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+>>>>>>> 3db02792a1be00297c0360e421a4581e204e289b
 python-multipart==0.0.9
 httpx==0.27.0
 

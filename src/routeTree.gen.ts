@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+<<<<<<< HEAD
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as DashboardRouteImport } from './routes/dashboard'
@@ -71,6 +72,30 @@ const NotificationsRoute = NotificationsRouteImport.update({
 const RegisterRoute = RegisterRouteImport.update({
   id: '/register',
   path: '/register',
+=======
+import { Route as VerificationRouteImport } from './routes/verification'
+import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as RegisterRouteImport } from './routes/register'
+import { Route as NotificationsRouteImport } from './routes/notifications'
+import { Route as MyListingsRouteImport } from './routes/my-listings'
+import { Route as MarketplaceRouteImport } from './routes/marketplace'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as HowItWorksRouteImport } from './routes/how-it-works'
+import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as AdminRouteImport } from './routes/admin'
+import { Route as IndexRouteImport } from './routes/index'
+import { Route as SellUploadImagesRouteImport } from './routes/sell.upload-images'
+import { Route as SellUploadDocsRouteImport } from './routes/sell.upload-docs'
+import { Route as SellSetPriceRouteImport } from './routes/sell.set-price'
+import { Route as SellNewRouteImport } from './routes/sell.new'
+import { Route as SellDetailsRouteImport } from './routes/sell.details'
+import { Route as ListingIdRouteImport } from './routes/listing.$id'
+import { Route as ChatConversationIdRouteImport } from './routes/chat.$conversationId'
+
+const VerificationRoute = VerificationRouteImport.update({
+  id: '/verification',
+  path: '/verification',
+>>>>>>> 3db02792a1be00297c0360e421a4581e204e289b
   getParentRoute: () => rootRouteImport,
 } as any)
 const SettingsRoute = SettingsRouteImport.update({
@@ -78,6 +103,7 @@ const SettingsRoute = SettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
+<<<<<<< HEAD
 const VerificationRoute = VerificationRouteImport.update({
   id: '/verification',
   path: '/verification',
@@ -106,6 +132,56 @@ const SellNewRoute = SellNewRouteImport.update({
 const SellSetPriceRoute = SellSetPriceRouteImport.update({
   id: '/sell/set-price',
   path: '/sell/set-price',
+=======
+const RegisterRoute = RegisterRouteImport.update({
+  id: '/register',
+  path: '/register',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NotificationsRoute = NotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MyListingsRoute = MyListingsRouteImport.update({
+  id: '/my-listings',
+  path: '/my-listings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MarketplaceRoute = MarketplaceRouteImport.update({
+  id: '/marketplace',
+  path: '/marketplace',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HowItWorksRoute = HowItWorksRouteImport.update({
+  id: '/how-it-works',
+  path: '/how-it-works',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardRoute = DashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SellUploadImagesRoute = SellUploadImagesRouteImport.update({
+  id: '/sell/upload-images',
+  path: '/sell/upload-images',
+>>>>>>> 3db02792a1be00297c0360e421a4581e204e289b
   getParentRoute: () => rootRouteImport,
 } as any)
 const SellUploadDocsRoute = SellUploadDocsRouteImport.update({
@@ -113,9 +189,35 @@ const SellUploadDocsRoute = SellUploadDocsRouteImport.update({
   path: '/sell/upload-docs',
   getParentRoute: () => rootRouteImport,
 } as any)
+<<<<<<< HEAD
 const SellUploadImagesRoute = SellUploadImagesRouteImport.update({
   id: '/sell/upload-images',
   path: '/sell/upload-images',
+=======
+const SellSetPriceRoute = SellSetPriceRouteImport.update({
+  id: '/sell/set-price',
+  path: '/sell/set-price',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SellNewRoute = SellNewRouteImport.update({
+  id: '/sell/new',
+  path: '/sell/new',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SellDetailsRoute = SellDetailsRouteImport.update({
+  id: '/sell/details',
+  path: '/sell/details',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ListingIdRoute = ListingIdRouteImport.update({
+  id: '/listing/$id',
+  path: '/listing/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ChatConversationIdRoute = ChatConversationIdRouteImport.update({
+  id: '/chat/$conversationId',
+  path: '/chat/$conversationId',
+>>>>>>> 3db02792a1be00297c0360e421a4581e204e289b
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -266,6 +368,7 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+<<<<<<< HEAD
     '/': {
       id: '/'
       path: '/'
@@ -327,6 +430,13 @@ declare module '@tanstack/react-router' {
       path: '/register'
       fullPath: '/register'
       preLoaderRoute: typeof RegisterRouteImport
+=======
+    '/verification': {
+      id: '/verification'
+      path: '/verification'
+      fullPath: '/verification'
+      preLoaderRoute: typeof VerificationRouteImport
+>>>>>>> 3db02792a1be00297c0360e421a4581e204e289b
       parentRoute: typeof rootRouteImport
     }
     '/settings': {
@@ -336,6 +446,7 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
+<<<<<<< HEAD
     '/verification': {
       id: '/verification'
       path: '/verification'
@@ -376,6 +487,76 @@ declare module '@tanstack/react-router' {
       path: '/sell/set-price'
       fullPath: '/sell/set-price'
       preLoaderRoute: typeof SellSetPriceRouteImport
+=======
+    '/register': {
+      id: '/register'
+      path: '/register'
+      fullPath: '/register'
+      preLoaderRoute: typeof RegisterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/notifications': {
+      id: '/notifications'
+      path: '/notifications'
+      fullPath: '/notifications'
+      preLoaderRoute: typeof NotificationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/my-listings': {
+      id: '/my-listings'
+      path: '/my-listings'
+      fullPath: '/my-listings'
+      preLoaderRoute: typeof MyListingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/marketplace': {
+      id: '/marketplace'
+      path: '/marketplace'
+      fullPath: '/marketplace'
+      preLoaderRoute: typeof MarketplaceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/how-it-works': {
+      id: '/how-it-works'
+      path: '/how-it-works'
+      fullPath: '/how-it-works'
+      preLoaderRoute: typeof HowItWorksRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sell/upload-images': {
+      id: '/sell/upload-images'
+      path: '/sell/upload-images'
+      fullPath: '/sell/upload-images'
+      preLoaderRoute: typeof SellUploadImagesRouteImport
+>>>>>>> 3db02792a1be00297c0360e421a4581e204e289b
       parentRoute: typeof rootRouteImport
     }
     '/sell/upload-docs': {
@@ -385,11 +566,47 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SellUploadDocsRouteImport
       parentRoute: typeof rootRouteImport
     }
+<<<<<<< HEAD
     '/sell/upload-images': {
       id: '/sell/upload-images'
       path: '/sell/upload-images'
       fullPath: '/sell/upload-images'
       preLoaderRoute: typeof SellUploadImagesRouteImport
+=======
+    '/sell/set-price': {
+      id: '/sell/set-price'
+      path: '/sell/set-price'
+      fullPath: '/sell/set-price'
+      preLoaderRoute: typeof SellSetPriceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sell/new': {
+      id: '/sell/new'
+      path: '/sell/new'
+      fullPath: '/sell/new'
+      preLoaderRoute: typeof SellNewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sell/details': {
+      id: '/sell/details'
+      path: '/sell/details'
+      fullPath: '/sell/details'
+      preLoaderRoute: typeof SellDetailsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/listing/$id': {
+      id: '/listing/$id'
+      path: '/listing/$id'
+      fullPath: '/listing/$id'
+      preLoaderRoute: typeof ListingIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/chat/$conversationId': {
+      id: '/chat/$conversationId'
+      path: '/chat/$conversationId'
+      fullPath: '/chat/$conversationId'
+      preLoaderRoute: typeof ChatConversationIdRouteImport
+>>>>>>> 3db02792a1be00297c0360e421a4581e204e289b
       parentRoute: typeof rootRouteImport
     }
   }

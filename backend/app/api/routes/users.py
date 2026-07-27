@@ -39,7 +39,11 @@ async def get_user_listings(
     result = await db.execute(
         select(Listing)
         .where(
+<<<<<<< HEAD
             Listing.seller_id == user_id,
+=======
+            Listing.seller_id == uuid.UUID(user_id),
+>>>>>>> 3db02792a1be00297c0360e421a4581e204e289b
             Listing.status == ListingStatus.published,
         )
         .order_by(Listing.published_at.desc())

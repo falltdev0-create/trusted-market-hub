@@ -5,11 +5,16 @@ app/core/config.py — إعدادات النظام الأساسية
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import List
 from functools import lru_cache
+<<<<<<< HEAD
 from pydantic import model_validator
 
 HF_CONDITION_MODEL = "microsoft/resnet-50"
 HF_DOCUMENT_MODEL = "microsoft/trocr-large-handwritten"
 HF_PRICING_MODEL = "google/flan-t5-base"
+=======
+
+
+>>>>>>> 3db02792a1be00297c0360e421a4581e204e289b
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -19,6 +24,7 @@ class Settings(BaseSettings):
     # ── App ───────────────────────────────────────────────────────────────────
     APP_NAME:    str  = "maskan"
     APP_VERSION: str  = "2.0.0"
+<<<<<<< HEAD
     DEBUG:       str | bool = False
 
     # ── Database ──────────────────────────────────────────────────────────────
@@ -50,6 +56,17 @@ class Settings(BaseSettings):
 
     # ── Redis ─────────────────────────────────────────────────────────────────
     REDIS_URL: str = "redis://127.0.0.1:6379"
+=======
+    DEBUG:       bool = False
+
+    # ── Database ──────────────────────────────────────────────────────────────
+    DATABASE_URL:    str = "postgresql+asyncpg://postgres:password@localhost:5432/moamalati"
+    DB_POOL_SIZE:    int = 20
+    DB_MAX_OVERFLOW: int = 40
+
+    # ── Redis ─────────────────────────────────────────────────────────────────
+    REDIS_URL: str = "redis://localhost:6379"
+>>>>>>> 3db02792a1be00297c0360e421a4581e204e289b
 
     # ── JWT ───────────────────────────────────────────────────────────────────
     JWT_SECRET_KEY:            str = "CHANGE_IN_PRODUCTION"
@@ -66,10 +83,17 @@ class Settings(BaseSettings):
     STORAGE_SECURE:        bool = False
 
     # ── CORS ──────────────────────────────────────────────────────────────────
+<<<<<<< HEAD
     ALLOWED_ORIGINS_STR: str = "http://localhost:5173,http://localhost:3000"
     @property
     def ALLOWED_ORIGINS(self) -> List[str]:
         return [origin.strip() for origin in self.ALLOWED_ORIGINS_STR.split(",")]
+=======
+    ALLOWED_ORIGINS: List[str] = [
+        "http://localhost:5173",
+        "https://moamalati.app",
+    ]
+>>>>>>> 3db02792a1be00297c0360e421a4581e204e289b
 
     # ── AI Model Paths ────────────────────────────────────────────────────────
     CONDITION_MODEL_PATH: str = "ai_models/condition_model/weights/model.pt"

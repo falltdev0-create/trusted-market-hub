@@ -3,9 +3,13 @@ import axios from "axios";
 
 export const API_BASE_URL =
   (typeof window !== "undefined" && (window as any).__API_BASE__) ||
+<<<<<<< HEAD
   (import.meta.env.VITE_API_BASE
     ? `${import.meta.env.VITE_API_BASE}/api/v1`
     : "http://localhost:8000/api/v1");
+=======
+  "http://localhost:8000/api/v1";
+>>>>>>> 3db02792a1be00297c0360e421a4581e204e289b
 
 export const api = axios.create({ baseURL: API_BASE_URL, timeout: 15000 });
 

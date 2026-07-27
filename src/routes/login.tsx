@@ -2,7 +2,10 @@ import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { Shield } from "lucide-react";
 import { toast } from "sonner";
+<<<<<<< HEAD
 import { authApi } from "@/lib/api";
+=======
+>>>>>>> 3db02792a1be00297c0360e421a4581e204e289b
 import { useAuthStore } from "@/stores/auth";
 
 export const Route = createFileRoute("/login")({
@@ -21,6 +24,7 @@ function Login() {
     e.preventDefault();
     setLoading(true);
     try {
+<<<<<<< HEAD
       const response = await authApi.login(email, password);
       const data = response.data;
       login(
@@ -34,6 +38,21 @@ function Login() {
       );
       toast.success("تم تسجيل الدخول");
       navigate({ to: "/dashboard" });
+=======
+      await new Promise((r) => setTimeout(r, 500));
+      const isAdmin = email.includes("admin");
+      login(
+        {
+          id: isAdmin ? "admin1" : "u1",
+          name: isAdmin ? "المدير" : "محمد أحمد",
+          email,
+          role: isAdmin ? "admin" : "user",
+        },
+        "mock-token-" + Date.now(),
+      );
+      toast.success("تم تسجيل الدخول");
+      navigate({ to: isAdmin ? "/admin" : "/dashboard" });
+>>>>>>> 3db02792a1be00297c0360e421a4581e204e289b
     } catch {
       toast.error("بيانات الدخول غير صحيحة");
     } finally {

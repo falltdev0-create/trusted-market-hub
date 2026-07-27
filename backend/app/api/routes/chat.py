@@ -89,7 +89,11 @@ class SignDisclaimerIn(BaseModel):
 @router.post("/conversations/start", status_code=201)
 async def start_conversation(body: StartConversationIn, db: AsyncSession = Depends(get_db)):
     """بدء محادثة بين مشتري وبائع."""
+<<<<<<< HEAD
     result  = await db.execute(select(Listing).where(Listing.id == body.listing_id))
+=======
+    result  = await db.execute(select(Listing).where(Listing.id == uuid.UUID(body.listing_id)))
+>>>>>>> 3db02792a1be00297c0360e421a4581e204e289b
     listing = result.scalar_one_or_none()
     if not listing or listing.status != ListingStatus.published:
         raise HTTPException(404, "الإعلان غير موجود أو غير منشور")
@@ -97,8 +101,13 @@ async def start_conversation(body: StartConversationIn, db: AsyncSession = Depen
     # Check existing conversation
     existing = (await db.execute(
         select(Conversation).where(and_(
+<<<<<<< HEAD
             Conversation.listing_id == body.listing_id,
             Conversation.buyer_id   == body.buyer_id,
+=======
+            Conversation.listing_id == uuid.UUID(body.listing_id),
+            Conversation.buyer_id   == uuid.UUID(body.buyer_id),
+>>>>>>> 3db02792a1be00297c0360e421a4581e204e289b
         ))
     )).scalar_one_or_none()
 
@@ -106,9 +115,15 @@ async def start_conversation(body: StartConversationIn, db: AsyncSession = Depen
         return {"conversation_id": str(existing.id), "disclaimer_signed": existing.disclaimer_signed}
 
     conv = Conversation(
+<<<<<<< HEAD
         id=str(uuid.uuid4()),
         listing_id=body.listing_id,
         buyer_id=body.buyer_id,
+=======
+        id=uuid.uuid4(),
+        listing_id=uuid.UUID(body.listing_id),
+        buyer_id=uuid.UUID(body.buyer_id),
+>>>>>>> 3db02792a1be00297c0360e421a4581e204e289b
         seller_id=listing.seller_id,
         disclaimer_signed=False,
     )
@@ -125,8 +140,13 @@ async def sign_disclaimer(body: SignDisclaimerIn, db: AsyncSession = Depends(get
     """
     result = (await db.execute(
         select(Conversation).where(and_(
+<<<<<<< HEAD
             Conversation.id       == body.conversation_id,
             Conversation.buyer_id == body.buyer_id,
+=======
+            Conversation.id       == uuid.UUID(body.conversation_id),
+            Conversation.buyer_id == uuid.UUID(body.buyer_id),
+>>>>>>> 3db02792a1be00297c0360e421a4581e204e289b
         ))
     )).scalar_one_or_none()
     if not result:
@@ -147,7 +167,11 @@ async def get_messages(
 ):
     rows = (await db.execute(
         select(Message)
+<<<<<<< HEAD
         .where(Message.conversation_id == conversation_id)
+=======
+        .where(Message.conversation_id == uuid.UUID(conversation_id))
+>>>>>>> 3db02792a1be00297c0360e421a4581e204e289b
         .order_by(Message.created_at.asc())
         .offset((page - 1) * page_size)
         .limit(page_size)
@@ -188,7 +212,11 @@ async def websocket_chat(
 
             # Load conversation
             conv = (await db.execute(
+<<<<<<< HEAD
                 select(Conversation).where(Conversation.id == conversation_id)
+=======
+                select(Conversation).where(Conversation.id == uuid.UUID(conversation_id))
+>>>>>>> 3db02792a1be00297c0360e421a4581e204e289b
             )).scalar_one_or_none()
 
             if not conv or not conv.disclaimer_signed:
@@ -207,9 +235,15 @@ async def websocket_chat(
                 })
 
             msg = Message(
+<<<<<<< HEAD
                 id=str(uuid.uuid4()),
                 conversation_id=conversation_id,
                 sender_id=user_id,
+=======
+                id=uuid.uuid4(),
+                conversation_id=uuid.UUID(conversation_id),
+                sender_id=uuid.UUID(user_id),
+>>>>>>> 3db02792a1be00297c0360e421a4581e204e289b
                 content=cleaned,
                 was_filtered=was_filtered,
             )
