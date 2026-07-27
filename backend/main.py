@@ -11,13 +11,9 @@ import uvicorn
 
 from app.core.config import settings
 from app.core.database import create_tables
-<<<<<<< HEAD
 from auth import router as auth_router
 from app.api.routes import users, listings, verification, chat, search, admin, upload
 from app.api import notifications
-=======
-from app.api.routes import auth, users, listings, verification, chat, search, admin, upload
->>>>>>> 3db02792a1be00297c0360e421a4581e204e289b
 
 
 @asynccontextmanager
@@ -36,21 +32,13 @@ app = FastAPI(
     docs_url="/api/docs" if settings.DEBUG else None,
     redoc_url=None,
 )
-<<<<<<< HEAD
 print(settings.ALLOWED_ORIGINS)
 print(type(settings.ALLOWED_ORIGINS))
-=======
-
->>>>>>> 3db02792a1be00297c0360e421a4581e204e289b
 # ── Middleware ────────────────────────────────────────────────────────────────
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 app.add_middleware(
     CORSMiddleware,
-<<<<<<< HEAD
     allow_origins=["*"],
-=======
-    allow_origins=settings.ALLOWED_ORIGINS,
->>>>>>> 3db02792a1be00297c0360e421a4581e204e289b
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -58,11 +46,7 @@ app.add_middleware(
 
 # ── Routers ───────────────────────────────────────────────────────────────────
 V1 = "/api/v1"
-<<<<<<< HEAD
 app.include_router(auth_router,         prefix=f"{V1}/auth",         tags=["Auth"])
-=======
-app.include_router(auth.router,         prefix=f"{V1}/auth",         tags=["Auth"])
->>>>>>> 3db02792a1be00297c0360e421a4581e204e289b
 app.include_router(users.router,        prefix=f"{V1}/users",        tags=["Users"])
 app.include_router(listings.router,     prefix=f"{V1}/listings",     tags=["Listings"])
 app.include_router(verification.router, prefix=f"{V1}/verification", tags=["Verification"])
@@ -70,10 +54,7 @@ app.include_router(chat.router,         prefix=f"{V1}/chat",         tags=["Chat
 app.include_router(search.router,       prefix=f"{V1}/search",       tags=["Search"])
 app.include_router(admin.router,        prefix=f"{V1}/admin",        tags=["Admin"])
 app.include_router(upload.router,       prefix=f"{V1}/upload",       tags=["Upload"])
-<<<<<<< HEAD
 app.include_router(notifications.router, prefix=f"{V1}/notifications", tags=["Notifications"])
-=======
->>>>>>> 3db02792a1be00297c0360e421a4581e204e289b
 app.include_router(kyc.router,          prefix=f"{V1}/kyc",          tags=["KYC"])
 
 
@@ -83,8 +64,4 @@ async def health():
 
 
 if __name__ == "__main__":
-<<<<<<< HEAD
     uvicorn.run("main:app", host="0.0.0.0", port=8001, reload=settings.DEBUG)
-=======
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=settings.DEBUG)
->>>>>>> 3db02792a1be00297c0360e421a4581e204e289b

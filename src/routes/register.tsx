@@ -2,10 +2,7 @@ import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { Shield, BadgeCheck, Bot, FileCheck2 } from "lucide-react";
 import { toast } from "sonner";
-<<<<<<< HEAD
 import { authApi } from "@/lib/api";
-=======
->>>>>>> 3db02792a1be00297c0360e421a4581e204e289b
 import { useAuthStore } from "@/stores/auth";
 
 export const Route = createFileRoute("/register")({
@@ -47,7 +44,6 @@ function Register() {
     }
     setLoading(true);
     try {
-<<<<<<< HEAD
       const response = await authApi.register({
         full_name: form.name,
         email: form.email,
@@ -63,18 +59,6 @@ function Register() {
       navigate({ to: "/dashboard" });
     } catch (error: any) {
       toast.error(error?.response?.data?.detail || "فشل إنشاء الحساب");
-=======
-      // POST /api/v1/auth/register — using mock locally
-      await new Promise((r) => setTimeout(r, 700));
-      login(
-        { id: "u1", name: form.name, email: form.email, role: "user" },
-        "mock-token-" + Date.now(),
-      );
-      toast.success("تم إنشاء الحساب بنجاح");
-      navigate({ to: "/dashboard" });
-    } catch {
-      toast.error("فشل إنشاء الحساب");
->>>>>>> 3db02792a1be00297c0360e421a4581e204e289b
     } finally {
       setLoading(false);
     }

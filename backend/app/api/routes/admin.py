@@ -67,21 +67,13 @@ async def get_pending_listings(
 async def get_listing_full_review(listing_id: str, db: AsyncSession = Depends(get_db)):
     """تفاصيل الإعلان الكاملة للمراجعة (صور + وثائق + نتيجة AI)"""
     listing = (await db.execute(
-<<<<<<< HEAD
         select(Listing).where(Listing.id == listing_id)
-=======
-        select(Listing).where(Listing.id == uuid.UUID(listing_id))
->>>>>>> 3db02792a1be00297c0360e421a4581e204e289b
     )).scalar_one_or_none()
     if not listing:
         raise HTTPException(404)
 
     verif = (await db.execute(
-<<<<<<< HEAD
         select(ListingVerification).where(ListingVerification.listing_id == listing_id)
-=======
-        select(ListingVerification).where(ListingVerification.listing_id == uuid.UUID(listing_id))
->>>>>>> 3db02792a1be00297c0360e421a4581e204e289b
     )).scalar_one_or_none()
 
     return {
@@ -115,11 +107,7 @@ async def get_listing_full_review(listing_id: str, db: AsyncSession = Depends(ge
 @router.post("/approve-listing")
 async def approve_listing(body: ApproveIn, db: AsyncSession = Depends(get_db)):
     listing = (await db.execute(
-<<<<<<< HEAD
         select(Listing).where(Listing.id == body.listing_id)
-=======
-        select(Listing).where(Listing.id == uuid.UUID(body.listing_id))
->>>>>>> 3db02792a1be00297c0360e421a4581e204e289b
     )).scalar_one_or_none()
     if not listing:
         raise HTTPException(404)
@@ -135,11 +123,7 @@ async def approve_listing(body: ApproveIn, db: AsyncSession = Depends(get_db)):
 @router.post("/reject-listing")
 async def reject_listing(body: RejectIn, db: AsyncSession = Depends(get_db)):
     listing = (await db.execute(
-<<<<<<< HEAD
         select(Listing).where(Listing.id == body.listing_id)
-=======
-        select(Listing).where(Listing.id == uuid.UUID(body.listing_id))
->>>>>>> 3db02792a1be00297c0360e421a4581e204e289b
     )).scalar_one_or_none()
     if not listing:
         raise HTTPException(404)
@@ -148,19 +132,11 @@ async def reject_listing(body: RejectIn, db: AsyncSession = Depends(get_db)):
     listing.rejected_reason = body.reason
 
     verif = (await db.execute(
-<<<<<<< HEAD
         select(ListingVerification).where(ListingVerification.listing_id == body.listing_id)
     )).scalar_one_or_none()
     if verif:
         verif.rejection_reason = body.reason
         verif.reviewed_by      = body.admin_id
-=======
-        select(ListingVerification).where(ListingVerification.listing_id == uuid.UUID(body.listing_id))
-    )).scalar_one_or_none()
-    if verif:
-        verif.rejection_reason = body.reason
-        verif.reviewed_by      = uuid.UUID(body.admin_id)
->>>>>>> 3db02792a1be00297c0360e421a4581e204e289b
         verif.reviewed_at      = datetime.utcnow()
 
     await db.commit()

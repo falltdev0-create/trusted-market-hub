@@ -1,11 +1,6 @@
 """
-<<<<<<< HEAD
 app/core/database.py — Database configuration and session management
 Async SQLAlchemy + mySQL (aiomysql) setup for the Maskan application.
-=======
-app/core/database.py — قاعدة البيانات
-Async SQLAlchemy + PostgreSQL
->>>>>>> 3db02792a1be00297c0360e421a4581e204e289b
 """
 
 from sqlalchemy.ext.asyncio import (
@@ -16,11 +11,7 @@ from app.core.config import settings
 
 engine_kwargs = {
     "echo": settings.DEBUG,
-<<<<<<< HEAD
     "pool_pre_ping": not settings.DATABASE_URL.startswith("mysql"),
-=======
-    "pool_pre_ping": True,
->>>>>>> 3db02792a1be00297c0360e421a4581e204e289b
 }
 
 if settings.DATABASE_URL.startswith("sqlite"):
@@ -61,7 +52,6 @@ async def get_db():
 
 async def create_tables():
     from app.models import models  # noqa — registers all models
-<<<<<<< HEAD
     try:
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
@@ -72,7 +62,3 @@ async def create_tables():
         # the developer can inspect and fix DB credentials without failing
         # the whole service.
         return
-=======
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
->>>>>>> 3db02792a1be00297c0360e421a4581e204e289b

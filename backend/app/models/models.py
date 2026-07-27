@@ -12,10 +12,6 @@ from sqlalchemy import (
     Column, String, Text, Boolean, DateTime,
     Float, Integer, Enum, ForeignKey, JSON, Index
 )
-<<<<<<< HEAD
-=======
-from sqlalchemy.dialects.postgresql import UUID
->>>>>>> 3db02792a1be00297c0360e421a4581e204e289b
 from sqlalchemy.orm import relationship
 
 from app.core.database import Base
@@ -80,11 +76,7 @@ class DocMatchStatus(str, enum.Enum):
 class User(Base):
     __tablename__ = "users"
 
-<<<<<<< HEAD
     id                   = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-=======
-    id                   = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
->>>>>>> 3db02792a1be00297c0360e421a4581e204e289b
     email                = Column(String(255), unique=True, nullable=False, index=True)
     phone                = Column(String(20),  unique=True, nullable=False)
     password_hash        = Column(String(255), nullable=False)
@@ -119,13 +111,8 @@ class Listing(Base):
         Index("ix_listing_city_status",     "city", "status"),
     )
 
-<<<<<<< HEAD
     id               = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     seller_id        = Column(String(36), ForeignKey("users.id"), nullable=False)
-=======
-    id               = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    seller_id        = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
->>>>>>> 3db02792a1be00297c0360e421a4581e204e289b
     category         = Column(Enum(ListingCategory), nullable=False)
     listing_type     = Column(Enum(ListingType), nullable=False)
     title            = Column(String(255), nullable=False)
@@ -156,15 +143,10 @@ class Listing(Base):
 class ListingImage(Base):
     __tablename__ = "listing_images"
 
-<<<<<<< HEAD
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
 
 
     listing_id = Column(String(36), ForeignKey("listings.id"), nullable=False)
-=======
-    id         = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    listing_id = Column(UUID(as_uuid=True), ForeignKey("listings.id"), nullable=False)
->>>>>>> 3db02792a1be00297c0360e421a4581e204e289b
     url        = Column(String(500), nullable=False)
     image_type = Column(String(50), default="item")   # item | exterior | interior
     order      = Column(Integer, default=0)
@@ -176,13 +158,8 @@ class ListingImage(Base):
 class ListingVerification(Base):
     __tablename__ = "listing_verifications"
 
-<<<<<<< HEAD
     id                = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     listing_id        = Column(String(36), ForeignKey("listings.id"),
-=======
-    id                = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    listing_id        = Column(UUID(as_uuid=True), ForeignKey("listings.id"),
->>>>>>> 3db02792a1be00297c0360e421a4581e204e289b
                                unique=True, nullable=False)
     owner_id_doc_url  = Column(String(500), nullable=True)
     ownership_doc_url = Column(String(500), nullable=True)
@@ -190,11 +167,7 @@ class ListingVerification(Base):
     match_status      = Column(Enum(DocMatchStatus), default=DocMatchStatus.pending)
     match_details     = Column(JSON, nullable=True)
     rejection_reason  = Column(Text, nullable=True)
-<<<<<<< HEAD
     reviewed_by       = Column(String(36), nullable=True)
-=======
-    reviewed_by       = Column(UUID(as_uuid=True), nullable=True)
->>>>>>> 3db02792a1be00297c0360e421a4581e204e289b
     reviewed_at       = Column(DateTime, nullable=True)
     verified_at       = Column(DateTime, nullable=True)
 
@@ -208,17 +181,10 @@ class ListingVerification(Base):
 class Conversation(Base):
     __tablename__ = "conversations"
 
-<<<<<<< HEAD
     id                   = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     listing_id           = Column(String(36), ForeignKey("listings.id"), nullable=False)
     buyer_id             = Column(String(36), ForeignKey("users.id"),    nullable=False)
     seller_id            = Column(String(36), ForeignKey("users.id"),    nullable=False)
-=======
-    id                   = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    listing_id           = Column(UUID(as_uuid=True), ForeignKey("listings.id"), nullable=False)
-    buyer_id             = Column(UUID(as_uuid=True), ForeignKey("users.id"),    nullable=False)
-    seller_id            = Column(UUID(as_uuid=True), ForeignKey("users.id"),    nullable=False)
->>>>>>> 3db02792a1be00297c0360e421a4581e204e289b
     disclaimer_signed    = Column(Boolean, default=False)
     disclaimer_signed_at = Column(DateTime, nullable=True)
     created_at           = Column(DateTime, default=datetime.utcnow)
@@ -230,15 +196,9 @@ class Conversation(Base):
 class Message(Base):
     __tablename__ = "messages"
 
-<<<<<<< HEAD
     id              = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     conversation_id = Column(String(36), ForeignKey("conversations.id"), nullable=False)
     sender_id       = Column(String(36), ForeignKey("users.id"), nullable=False)
-=======
-    id              = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    conversation_id = Column(UUID(as_uuid=True), ForeignKey("conversations.id"), nullable=False)
-    sender_id       = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
->>>>>>> 3db02792a1be00297c0360e421a4581e204e289b
     content         = Column(Text, nullable=False)
     was_filtered    = Column(Boolean, default=False)
     is_read         = Column(Boolean, default=False)
@@ -256,15 +216,10 @@ class Message(Base):
 class Notification(Base):
     __tablename__ = "notifications"
 
-<<<<<<< HEAD
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
 
 
     user_id    = Column(String(36), ForeignKey("users.id"), nullable=False)
-=======
-    id         = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id    = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
->>>>>>> 3db02792a1be00297c0360e421a4581e204e289b
     type       = Column(String(50), nullable=False)
     title      = Column(String(255), nullable=False)
     body       = Column(Text, nullable=True)

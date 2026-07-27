@@ -1,10 +1,6 @@
 from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-<<<<<<< HEAD
 from app.services.storage_service import get_storage_service
-=======
-from app.services.storage_service import storage_service
->>>>>>> 3db02792a1be00297c0360e421a4581e204e289b
 from app.models.models import User, KYCStatus
 from app.api.routes.auth import get_current_user
 
@@ -27,10 +23,7 @@ async def submit_kyc(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-<<<<<<< HEAD
     storage_service = get_storage_service()
-=======
->>>>>>> 3db02792a1be00297c0360e421a4581e204e289b
     #read the uploaded files
     id_content = await id_document.read()
     selfie_content = await selfie.read()

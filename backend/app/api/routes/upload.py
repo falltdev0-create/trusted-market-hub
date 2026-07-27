@@ -11,25 +11,17 @@ import uuid
 
 from app.core.database import get_db
 from app.models.models import Listing, ListingImage, ListingStatus, ConditionGrade
-<<<<<<< HEAD
 from app.services.storage_service import get_storage_service
 from app.services.ai_service import get_ai_service
-=======
-from app.services.storage_service import storage_service
-from app.services.ai_service import ai_service
->>>>>>> 3db02792a1be00297c0360e421a4581e204e289b
 from app.api.routes.auth import get_current_user
 from app.models.models import User
 
 router = APIRouter()
 
-<<<<<<< HEAD
 # Singletons
 storage_service = get_storage_service()
 ai_service = get_ai_service()
 
-=======
->>>>>>> 3db02792a1be00297c0360e421a4581e204e289b
 ALLOWED_TYPES  = {"image/jpeg", "image/png", "image/webp", "image/heic"}
 MAX_IMAGE_SIZE = 20 * 1024 * 1024   # 20 MB
 
@@ -49,11 +41,7 @@ async def upload_listing_images(
     if not (5 <= len(images) <= 20):
         raise HTTPException(422, "يجب رفع بين 5 و20 صورة")
 
-<<<<<<< HEAD
     result  = await db.execute(select(Listing).where(Listing.id == listing_id))
-=======
-    result  = await db.execute(select(Listing).where(Listing.id == uuid.UUID(listing_id)))
->>>>>>> 3db02792a1be00297c0360e421a4581e204e289b
     listing = result.scalar_one_or_none()
     if not listing:
         raise HTTPException(404, "الإعلان غير موجود")
@@ -76,13 +64,8 @@ async def upload_listing_images(
         url = await storage_service.upload_image(content, filename, listing_id, i)
         image_urls.append(url)
         db.add(ListingImage(
-<<<<<<< HEAD
             id=str(uuid.uuid4()),
             listing_id=listing_id,
-=======
-            id=uuid.uuid4(),
-            listing_id=uuid.UUID(listing_id),
->>>>>>> 3db02792a1be00297c0360e421a4581e204e289b
             url=url,
             image_type="exterior" if i < 3 else "interior",
             order=i,
@@ -127,11 +110,7 @@ async def upload_listing_images(
 @router.get("/listing/{listing_id}/condition-result")
 async def get_condition_result(listing_id: str, db: AsyncSession = Depends(get_db)):
     """استعلام عن نتيجة تقييم الحالة"""
-<<<<<<< HEAD
     result  = await db.execute(select(Listing).where(Listing.id == listing_id))
-=======
-    result  = await db.execute(select(Listing).where(Listing.id == uuid.UUID(listing_id)))
->>>>>>> 3db02792a1be00297c0360e421a4581e204e289b
     listing = result.scalar_one_or_none()
     if not listing:
         raise HTTPException(404)

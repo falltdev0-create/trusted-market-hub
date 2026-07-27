@@ -14,10 +14,6 @@
   "dependencies": {
     "@cloudflare/vite-plugin": "^1.25.5",
     "@hookform/resolvers": "^5.2.2",
-<<<<<<< HEAD
-    "@jridgewell/remapping": "^2.3.5",
-=======
->>>>>>> 3db02792a1be00297c0360e421a4581e204e289b
     "@radix-ui/react-accordion": "^1.2.12",
     "@radix-ui/react-alert-dialog": "^1.1.15",
     "@radix-ui/react-aspect-ratio": "^1.1.8",
@@ -90,13 +86,5 @@
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.56.1",
     "vite": "^7.3.1"
-<<<<<<< HEAD
-  },
-  "allowScripts": {
-    "esbuild@0.28.1": true,
-    "sharp@0.34.5": true,
-    "workerd@1.20260721.1": true
-=======
->>>>>>> 3db02792a1be00297c0360e421a4581e204e289b
   }
 }

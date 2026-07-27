@@ -26,11 +26,7 @@ async def main():
             return
 
         user = User(
-<<<<<<< HEAD
             id=str(uuid.uuid4()),
-=======
-            id=uuid.uuid4(),
->>>>>>> 3db02792a1be00297c0360e421a4581e204e289b
             email=admin_email,
             phone="0000000000",
             password_hash=pwd.hash(admin_password),
