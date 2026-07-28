@@ -81,13 +81,13 @@ function Dashboard() {
   }, [kycStatus]);
 
   const startKyc = useMutation({
-    mutationFn: () => tryApi(() => usersApi.startKyc().then((r) => r.data), { status: "pending" }),
-    onSuccess: () => {
-      toast.success("تم إرسال طلب التحقق من الهوية");
-      qc.invalidateQueries({ queryKey: ["users", "me"] });
+    mutationFn: async () => {
+      nav({ to: "/verification" });
+      return { status: "pending" as const };
     },
     onError: (e: any) => toast.error(e?.response?.data?.detail ?? "فشل طلب التحقق"),
   });
+
 
   const kyc = KYC_META[kycStatus];
   const stats = me?.stats ?? {};

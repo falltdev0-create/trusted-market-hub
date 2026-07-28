@@ -50,13 +50,10 @@ export const authApi = {
 
 export const usersApi = {
   me: () => api.get("/users/me"),
-
   submitKYC: (formData: FormData) =>
-  api.post("/kyc/submit", formData, {
-    headers: {
-      "Content-Type": "multipart/form-data",
-    },
-  }),
+    api.post("/kyc/submit", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    }),
 };
 
 export const listingsApi = {
@@ -65,6 +62,7 @@ export const listingsApi = {
   create: (data: { kind?: string; category?: string; listing_type?: string }) =>
     api.post("/listings/", data),
   setPrice: (id: string, price: number) => api.post(`/listings/${id}/set-price`, { price }),
+  priceEstimate: (id: string) => api.get(`/listings/${id}/price-estimate`),
   submitForReview: (id: string) => api.post(`/listings/${id}/submit-for-review`),
   updateDetails: (id: string, details: any) =>
     api.post(`/listings/${id}/update-details`, { details }),
@@ -94,13 +92,44 @@ export const notificationsApi = {
   markAllRead: () => api.post("/notifications/read-all"),
 };
 
+// ─── Admin (hierarchical) ─────────────────────────────────────────────────────
 export const adminApi = {
+  // Dashboard
   getStats: () => api.get("/admin/dashboard-stats"),
+  // Listings review
   getPendingListings: (page = 1) =>
     api.get("/admin/pending-listings", { params: { page } }),
-  approveListing: (listingId: string, adminId: string) =>
+  getListingReview: (id: string) => api.get(`/admin/listing/${id}/full-review`),
+  approveListing: (listingId: string, adminId?: string) =>
     api.post("/admin/approve-listing", { listing_id: listingId, admin_id: adminId }),
-  rejectListing: (listingId: string, adminId: string, reason: string) =>
+  rejectListing: (listingId: string, adminId: string | undefined, reason: string) =>
     api.post("/admin/reject-listing", { listing_id: listingId, admin_id: adminId, reason }),
+  // Users
+  listUsers: (params: { q?: string; page?: number } = {}) =>
+    api.get("/admin/users", { params }),
+  suspendUser: (userId: string) => api.post(`/admin/users/${userId}/suspend`),
+  activateUser: (userId: string) => api.post(`/admin/users/${userId}/activate`),
+  // KYC
+  listKycRequests: (status: "pending" | "approved" | "rejected" = "pending") =>
+    api.get("/admin/kyc", { params: { status } }),
+  reviewKyc: (kycId: string, decision: "approved" | "rejected", note?: string) =>
+    api.post(`/admin/kyc/${kycId}/review`, { decision, note }),
+  // Admin hierarchy (super_admin only)
+  listAdmins: () => api.get("/admin/admins"),
+  createAdmin: (data: { user_id: string; role: string; permissions?: string[] }) =>
+    api.post("/admin/admins", data),
+  updateAdmin: (id: string, data: { role?: string; is_active?: boolean; permissions?: string[] }) =>
+    api.patch(`/admin/admins/${id}`, data),
+  deleteAdmin: (id: string) => api.delete(`/admin/admins/${id}`),
+  // Actions log
+  getActionsLog: (page = 1) => api.get("/admin/actions-log", { params: { page } }),
+  // Reports
+  listReports: (status: string = "open") =>
+    api.get("/admin/reports", { params: { status } }),
+  resolveReport: (id: string, note: string) =>
+    api.post(`/admin/reports/${id}/resolve`, { note }),
+  // Settings
+  getSettings: () => api.get("/admin/settings"),
+  updateSetting: (key: string, value: any) =>
+    api.put(`/admin/settings/${key}`, { value }),
 };
-
