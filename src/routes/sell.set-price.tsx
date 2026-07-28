@@ -26,7 +26,7 @@ type Estimate = {
 
 function SetPrice() {
   const { draft, setPrice, reset } = useListingStore();
-  const category = (draft.category as string) ?? "property";
+  const category = draft.kind?.split("_")[1] ?? "property";
   const [price, setLocal] = useState<number>(draft.price ?? 100_000);
   const [estimate, setEst] = useState<Estimate | null>(null);
   const [submitted, setSubmitted] = useState(false);
