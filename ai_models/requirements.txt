@@ -1,37 +1,8 @@
-# Maskan AI Models v2 — Hugging Face Edition
-# Core dependencies for all models
-
-# Transformers & Deep Learning
-transformers>=4.35.0
-torch>=2.0.0
-torchvision>=0.15.0
-numpy>=1.24.0
-pillow>=10.0.0
-
-# OCR (for document model)
-easyocr>=1.7.0  # Arabic + English support
-pytesseract>=0.3.10  # Fallback OCR
-
-# Optional: For Tesseract support
-# tesseract-ocr (system package)
-
-# Utilities
-requests>=2.31.0
-tqdm>=4.66.0
-
-# For ML model loading (if using trained models)
-scikit-learn>=1.3.0
-joblib>=1.3.0
-
-# Sentence transformers (for feature embeddings in pricing model)
-sentence-transformers>=2.2.0
-
-# Optional: For better performance
-# accelerate>=0.24.0  # Faster inference
-# bitsandbytes>=0.40.0  # Quantization
-
-# Development
-python-dotenv>=1.0.0
-
-# Version info
-# For CPU-only installation, replace torch with: torch==2.0.0+cpu
+# AI Models — Hugging Face pipelines
+transformers>=4.44
+torch>=2.2
+pillow>=10.0
+requests>=2.31
+rapidfuzz>=3.5
+scikit-learn>=1.4
+numpy>=1.26
