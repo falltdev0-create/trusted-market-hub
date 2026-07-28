@@ -70,7 +70,7 @@ async def _get_admin_role(user: User, db: AsyncSession) -> Optional[str]:
     return None
 
 
-async def require_admin_role(min_role: str = "reviewer"):
+def require_admin_role(min_role: str = "reviewer"):
     """Dependency factory that ensures caller has at least `min_role`."""
     async def _dep(
         user: User = Depends(get_current_user),
@@ -163,7 +163,7 @@ class SettingIn(BaseModel):
 # ══════════════════════════════════════════════════════════════════════════
 @router.get("/dashboard-stats")
 async def dashboard_stats(
-    admin: User = Depends(await require_admin_role("reviewer")),
+    admin: User = Depends(require_admin_role("reviewer")),
     db: AsyncSession = Depends(get_db),
 ):
     async def _count(status: ListingStatus) -> int:
@@ -195,7 +195,7 @@ async def dashboard_stats(
 async def pending_listings(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
-    admin: User = Depends(await require_admin_role("reviewer")),
+    admin: User = Depends(require_admin_role("reviewer")),
     db: AsyncSession = Depends(get_db),
 ):
     rows = (await db.execute(
@@ -217,7 +217,7 @@ async def pending_listings(
 @router.get("/listing/{listing_id}/full-review")
 async def full_review(
     listing_id: str,
-    admin: User = Depends(await require_admin_role("reviewer")),
+    admin: User = Depends(require_admin_role("reviewer")),
     db: AsyncSession = Depends(get_db),
 ):
     listing = (await db.execute(select(Listing).where(Listing.id == listing_id))).scalar_one_or_none()
@@ -248,7 +248,7 @@ async def full_review(
 @router.post("/approve-listing")
 async def approve_listing(
     body: ApproveIn,
-    admin: User = Depends(await require_admin_role("moderator")),
+    admin: User = Depends(require_admin_role("moderator")),
     db: AsyncSession = Depends(get_db),
 ):
     listing = (await db.execute(select(Listing).where(Listing.id == body.listing_id))).scalar_one_or_none()
@@ -269,7 +269,7 @@ async def approve_listing(
 @router.post("/reject-listing")
 async def reject_listing(
     body: RejectIn,
-    admin: User = Depends(await require_admin_role("moderator")),
+    admin: User = Depends(require_admin_role("moderator")),
     db: AsyncSession = Depends(get_db),
 ):
     listing = (await db.execute(select(Listing).where(Listing.id == body.listing_id))).scalar_one_or_none()
@@ -295,7 +295,7 @@ async def list_users(
     q: Optional[str] = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
-    admin: User = Depends(await require_admin_role("reviewer")),
+    admin: User = Depends(require_admin_role("reviewer")),
     db: AsyncSession = Depends(get_db),
 ):
     stmt = select(User).order_by(desc(User.created_at))
@@ -314,7 +314,7 @@ async def list_users(
 @router.post("/users/{user_id}/suspend")
 async def suspend_user(
     user_id: str,
-    admin: User = Depends(await require_admin_role("admin")),
+    admin: User = Depends(require_admin_role("admin")),
     db: AsyncSession = Depends(get_db),
 ):
     u = await db.get(User, user_id)
@@ -329,7 +329,7 @@ async def suspend_user(
 @router.post("/users/{user_id}/activate")
 async def activate_user(
     user_id: str,
-    admin: User = Depends(await require_admin_role("admin")),
+    admin: User = Depends(require_admin_role("admin")),
     db: AsyncSession = Depends(get_db),
 ):
     u = await db.get(User, user_id)
@@ -347,7 +347,7 @@ async def activate_user(
 @router.get("/kyc")
 async def list_kyc(
     status: str = "pending",
-    admin: User = Depends(await require_admin_role("reviewer")),
+    admin: User = Depends(require_admin_role("reviewer")),
     db: AsyncSession = Depends(get_db),
 ):
     from sqlalchemy import text
@@ -374,7 +374,7 @@ async def list_kyc(
 @router.post("/kyc/{kyc_id}/review")
 async def review_kyc(
     kyc_id: str, body: KycDecisionIn,
-    admin: User = Depends(await require_admin_role("reviewer")),
+    admin: User = Depends(require_admin_role("reviewer")),
     db: AsyncSession = Depends(get_db),
 ):
     from sqlalchemy import text
@@ -407,7 +407,7 @@ async def review_kyc(
 # ══════════════════════════════════════════════════════════════════════════
 @router.get("/admins")
 async def list_admins(
-    admin: User = Depends(await require_admin_role("admin")),
+    admin: User = Depends(require_admin_role("admin")),
     db: AsyncSession = Depends(get_db),
 ):
     from sqlalchemy import text
@@ -428,7 +428,7 @@ async def list_admins(
 @router.post("/admins")
 async def create_admin(
     body: CreateAdminIn,
-    admin: User = Depends(await require_admin_role("super_admin")),
+    admin: User = Depends(require_admin_role("super_admin")),
     db: AsyncSession = Depends(get_db),
 ):
     if body.role not in ROLE_LEVEL:
@@ -452,7 +452,7 @@ async def create_admin(
 @router.patch("/admins/{admin_id}")
 async def update_admin(
     admin_id: str, body: UpdateAdminIn,
-    admin: User = Depends(await require_admin_role("super_admin")),
+    admin: User = Depends(require_admin_role("super_admin")),
     db: AsyncSession = Depends(get_db),
 ):
     from sqlalchemy import text
@@ -476,7 +476,7 @@ async def update_admin(
 @router.delete("/admins/{admin_id}")
 async def delete_admin(
     admin_id: str,
-    admin: User = Depends(await require_admin_role("super_admin")),
+    admin: User = Depends(require_admin_role("super_admin")),
     db: AsyncSession = Depends(get_db),
 ):
     from sqlalchemy import text
@@ -493,7 +493,7 @@ async def delete_admin(
 async def actions_log(
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=200),
-    admin: User = Depends(await require_admin_role("moderator")),
+    admin: User = Depends(require_admin_role("moderator")),
     db: AsyncSession = Depends(get_db),
 ):
     from sqlalchemy import text
@@ -521,7 +521,7 @@ async def actions_log(
 @router.get("/reports")
 async def list_reports(
     status: str = "open",
-    admin: User = Depends(await require_admin_role("moderator")),
+    admin: User = Depends(require_admin_role("moderator")),
     db: AsyncSession = Depends(get_db),
 ):
     from sqlalchemy import text
@@ -538,7 +538,7 @@ async def list_reports(
 @router.post("/reports/{report_id}/resolve")
 async def resolve_report(
     report_id: str, body: ReportResolveIn,
-    admin: User = Depends(await require_admin_role("moderator")),
+    admin: User = Depends(require_admin_role("moderator")),
     db: AsyncSession = Depends(get_db),
 ):
     from sqlalchemy import text
@@ -555,7 +555,7 @@ async def resolve_report(
 # ══════════════════════════════════════════════════════════════════════════
 @router.get("/settings")
 async def get_settings_ep(
-    admin: User = Depends(await require_admin_role("admin")),
+    admin: User = Depends(require_admin_role("admin")),
     db: AsyncSession = Depends(get_db),
 ):
     from sqlalchemy import text
@@ -569,7 +569,7 @@ async def get_settings_ep(
 @router.put("/settings/{key}")
 async def update_setting(
     key: str, body: SettingIn,
-    admin: User = Depends(await require_admin_role("super_admin")),
+    admin: User = Depends(require_admin_role("super_admin")),
     db: AsyncSession = Depends(get_db),
 ):
     import json
