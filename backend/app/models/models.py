@@ -29,9 +29,12 @@ class UserRole(str, enum.Enum):
 
 
 class KYCStatus(str, enum.Enum):
-    pending  = "pending"
-    approved = "approved"
-    rejected = "rejected"
+    unverified = "unverified"
+    pending    = "pending"
+    verified   = "verified"
+    rejected   = "rejected"
+    # Legacy alias — some old code paths still reference `approved`
+    approved   = "verified"
 
 
 class ListingCategory(str, enum.Enum):
