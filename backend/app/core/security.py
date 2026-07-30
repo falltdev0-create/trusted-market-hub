@@ -10,11 +10,13 @@ from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, text
 
 from app.core.config import settings
 from app.core.database import get_db
 from app.models.models import User, UserRole
+
+ADMIN_ROLE_LEVEL = {"reviewer": 1, "moderator": 2, "admin": 3, "super_admin": 4}
 
 # ── Password Context ──────────────────────────────────────────────────────────
 # dynamically choose the best hashing algorithm available
@@ -194,7 +196,8 @@ async def get_current_user(
 
 
 async def require_admin(
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ) -> User:
     """
     التحقق من أن المستخدم الحالي مشرف أو مدير
@@ -210,11 +213,13 @@ async def require_admin(
     Raises:
         HTTPException: إذا كان المستخدم ليس مشرفاً
     """
-    if current_user.role not in (UserRole.admin, UserRole.manager):
+    admin_role = await get_user_admin_role(current_user, db)
+    if not admin_role:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="صلاحيات المشرف مطلوبة"
         )
+    setattr(current_user, "admin_role", admin_role)
     return current_user
 
 
@@ -235,7 +240,7 @@ async def require_seller(
     Raises:
         HTTPException: إذا كان المستخدم ليس بائعاً
     """
-    if current_user.role not in (UserRole.seller, UserRole.both):
+    if current_user.role not in (UserRole.seller, UserRole.both, UserRole.admin, UserRole.super_admin):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="صلاحيات البائع مطلوبة"
@@ -260,12 +265,48 @@ async def require_buyer(
     Raises:
         HTTPException: إذا كان المستخدم ليس مشترياً
     """
-    if current_user.role not in (UserRole.buyer, UserRole.both):
+    if current_user.role not in (UserRole.buyer, UserRole.both, UserRole.admin, UserRole.super_admin):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="صلاحيات المشتري مطلوبة"
         )
     return current_user
+
+
+async def get_user_admin_role(user: User, db: AsyncSession) -> str | None:
+    """Return active hierarchical admin role from admins table, with legacy fallback."""
+    try:
+        row = (await db.execute(
+            text("SELECT role FROM admins WHERE user_id = :uid AND is_active = 1 LIMIT 1"),
+            {"uid": str(user.id)},
+        )).first()
+        if row and row[0] in ADMIN_ROLE_LEVEL:
+            return row[0]
+    except Exception:
+        pass
+
+    value = user.role.value if hasattr(user.role, "value") else str(user.role)
+    if value == "super_admin":
+        return "super_admin"
+    if value == "admin":
+        return "admin"
+    return None
+
+
+def require_admin_role(min_role: str = "reviewer"):
+    """Dependency factory for the admin hierarchy: super_admin > admin > moderator > reviewer."""
+    async def _dep(
+        current_user: User = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db),
+    ) -> User:
+        admin_role = await get_user_admin_role(current_user, db)
+        if not admin_role:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="صلاحيات المشرف مطلوبة")
+        if ADMIN_ROLE_LEVEL.get(admin_role, 0) < ADMIN_ROLE_LEVEL.get(min_role, 0):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=f"يتطلب صلاحية {min_role}")
+        setattr(current_user, "admin_role", admin_role)
+        return current_user
+    return _dep
 
 
 async def get_current_admin(
