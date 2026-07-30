@@ -1,14 +1,14 @@
-from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
+from fastapi import APIRouter, Depends, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import text
+import uuid
+
 from app.services.storage_service import get_storage_service
 from app.models.models import User, KYCStatus
-from app.api.routes.auth import get_current_user
-
 from app.core.database import get_db
 from app.api.routes.auth import get_current_user
-from app.models.models import User
 
-router = APIRouter(prefix="/kyc", tags=["KYC"])
+router = APIRouter()
 
 
 @router.get("/health")
@@ -47,6 +47,15 @@ async def submit_kyc(
     current_user.kyc_doc_url = id_url
     current_user.selfie_url = selfie_url
     current_user.kyc_status = KYCStatus.pending
+
+    await db.execute(text("""INSERT INTO kyc_submissions
+        (id, user_id, id_front_url, selfie_url, status, created_at)
+        VALUES (:id, :uid, :doc, :selfie, 'pending', NOW())"""), {
+        "id": str(uuid.uuid4()),
+        "uid": str(current_user.id),
+        "doc": id_url,
+        "selfie": selfie_url,
+    })
 
     await db.commit()
     await db.refresh(current_user)

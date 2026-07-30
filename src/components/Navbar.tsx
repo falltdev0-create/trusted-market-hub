@@ -81,7 +81,7 @@ export function Navbar() {
                   </span>
                 )}
               </Link>
-              {user?.role === "admin" && (
+              {(user?.role === "admin" || user?.role === "super_admin" || user?.admin_role) && (
                 <Link
                   to="/admin"
                   className="hidden items-center rounded-md bg-accent px-3 py-1.5 text-sm font-semibold text-accent-foreground md:inline-flex"
