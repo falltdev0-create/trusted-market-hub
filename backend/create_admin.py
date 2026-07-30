@@ -4,10 +4,10 @@ backend/create_admin.py — Create or upgrade the first super_admin.
 Usage:
     python backend/create_admin.py --email admin@moamalati.local --password 'Admin@12345' --name 'Super Admin'
 """
-import argparse, asyncio, sys, uuid
+import argparse, asyncio, os, sys, uuid
 from sqlalchemy import text
 
-sys.path.insert(0, ".")
+sys.path.insert(0, os.path.dirname(__file__))
 from app.core.database import AsyncSessionLocal
 from app.core.security import hash_password
 
@@ -17,12 +17,12 @@ async def run(email: str, password: str, name: str, phone: str):
         row = (await db.execute(text("SELECT id FROM users WHERE email = :e"), {"e": email})).first()
         if row:
             uid = row[0]
-            await db.execute(text("UPDATE users SET password_hash=:p, kyc_status='verified', is_active=1 WHERE id=:id"),
+            await db.execute(text("UPDATE users SET password_hash=:p, role='super_admin', kyc_status='verified', is_verified=1, is_active=1 WHERE id=:id"),
                              {"p": hash_password(password), "id": uid})
         else:
             uid = str(uuid.uuid4())
-            await db.execute(text("""INSERT INTO users (id, full_name, email, phone, password_hash, kyc_status, is_active, created_at)
-                VALUES (:id, :n, :e, :ph, :p, 'verified', 1, NOW())"""),
+            await db.execute(text("""INSERT INTO users (id, full_name, email, phone, password_hash, role, kyc_status, is_verified, is_active, created_at)
+                VALUES (:id, :n, :e, :ph, :p, 'super_admin', 'verified', 1, 1, NOW())"""),
                 {"id": uid, "n": name, "e": email, "ph": phone, "p": hash_password(password)})
 
         arow = (await db.execute(text("SELECT id FROM admins WHERE user_id = :u"), {"u": uid})).first()

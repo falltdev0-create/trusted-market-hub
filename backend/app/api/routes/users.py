@@ -8,6 +8,7 @@ from sqlalchemy import select
 import uuid
 
 from app.core.database import get_db
+from app.core.security import get_user_admin_role
 from app.models.models import User
 from app.api.routes.auth import get_current_user
 
@@ -15,8 +16,12 @@ router = APIRouter()
 
 
 @router.get("/me")
-async def get_me(current_user: User = Depends(get_current_user)):
+async def get_me(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
     """بيانات المستخدم الحالي"""
+    admin_role = await get_user_admin_role(current_user, db)
     return {
         "id":          str(current_user.id),
         "email":       current_user.email,
@@ -25,7 +30,8 @@ async def get_me(current_user: User = Depends(get_current_user)):
         "kyc_status":  current_user.kyc_status.value,
         "is_verified": current_user.is_verified,
         "avatar_url":  current_user.avatar_url,
-        "role":        current_user.role.value,
+        "role":        "admin" if admin_role else current_user.role.value,
+        "admin_role":  admin_role,
     }
 
 

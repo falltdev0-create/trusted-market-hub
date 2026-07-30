@@ -76,20 +76,16 @@ async def upload_listing_images(
 
     # AI condition assessment in background
     async def _run_assessment():
-        from app.core.config import settings
         try:
             image_bytes = [d[0] for d in images_data]
             ai_result   = await ai_service.assess_condition(image_bytes, listing.category.value)
 
             grade = ConditionGrade(ai_result["grade"])
-            cap   = settings.PRICE_CAPS.get(listing.category.value, {}) \
-                                       .get(listing.listing_type.value, {}) \
-                                       .get(grade.value, 99_999_999)
 
             listing.condition_grade  = grade
             listing.condition_score  = ai_result["score"]
             listing.condition_report = ai_result
-            listing.price_max_limit  = cap
+            listing.price_max_limit  = None
             listing.status           = ListingStatus.condition_assessed
             await db.commit()
             print(f"✅ AI assessed {listing_id}: {grade.value} ({ai_result['score']})")
@@ -124,7 +120,8 @@ async def get_condition_result(listing_id: str, db: AsyncSession = Depends(get_d
         "status":          "done",
         "condition_grade": listing.condition_grade.value,
         "condition_score": listing.condition_score,
-        "price_max_limit": listing.price_max_limit,
+        "price_max_limit": None,
+        "price_tier":      listing.price_tier,
         "currency":        listing.currency,
         "report":          listing.condition_report,
     }

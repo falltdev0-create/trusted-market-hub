@@ -28,7 +28,8 @@ function Login() {
           id: data.user_id,
           name: data.full_name,
           email,
-          role: "user",
+          role: data.admin_role ? "admin" : "user",
+          admin_role: data.admin_role ?? null,
         },
         data.access_token,
       );
