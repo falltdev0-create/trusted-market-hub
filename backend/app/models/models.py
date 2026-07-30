@@ -22,10 +22,11 @@ from app.core.database import Base
 # ══════════════════════════════════════════════════════════════════════════════
 
 class UserRole(str, enum.Enum):
-    buyer  = "buyer"
-    seller = "seller"
-    both   = "both"
-    admin  = "admin"
+    buyer       = "buyer"
+    seller      = "seller"
+    both        = "both"
+    admin       = "admin"
+    super_admin = "super_admin"  # legacy/display only; real hierarchy is in admins.role
 
 
 class KYCStatus(str, enum.Enum):
@@ -89,7 +90,7 @@ class User(Base):
     is_verified          = Column(Boolean, default=False)
     is_active            = Column(Boolean, default=True)
     avatar_url           = Column(String(500), nullable=True)
-    kyc_status           = Column(Enum(KYCStatus), default=KYCStatus.pending)
+    kyc_status           = Column(Enum(KYCStatus), default=KYCStatus.unverified)
     selfie_url           = Column(String(500), nullable=True)
     kyc_doc_url          = Column(String(500), nullable=True)
     disclaimer_signed    = Column(Boolean, default=False)
