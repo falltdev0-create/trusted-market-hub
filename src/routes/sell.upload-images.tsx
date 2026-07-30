@@ -200,10 +200,8 @@ function UploadImages() {
             <span className="ms-2">{labels}</span>
           </div>
           <div className="mt-6 rounded-xl bg-card p-4">
-            <p className="text-sm text-muted-foreground">الحد الأقصى للسعر</p>
-            <p className="text-2xl font-extrabold text-primary">
-              {(useListingStore.getState().draft.priceMax ?? 0).toLocaleString()} جنيه
-            </p>
+            <p className="text-sm text-muted-foreground">السعر</p>
+            <p className="text-lg font-bold text-primary">لا يوجد حد إلزامي — سيظهر التصنيف السعري بعد تحديد السعر.</p>
           </div>
           <button
             onClick={() => nav({ to: "/sell/upload-docs" })}

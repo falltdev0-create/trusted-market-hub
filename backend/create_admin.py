@@ -4,10 +4,10 @@ backend/create_admin.py — Create or upgrade the first super_admin.
 Usage:
     python backend/create_admin.py --email admin@moamalati.local --password 'Admin@12345' --name 'Super Admin'
 """
-import argparse, asyncio, sys, uuid
+import argparse, asyncio, os, sys, uuid
 from sqlalchemy import text
 
-sys.path.insert(0, ".")
+sys.path.insert(0, os.path.dirname(__file__))
 from app.core.database import AsyncSessionLocal
 from app.core.security import hash_password
 

@@ -21,7 +21,7 @@ CREATE TABLE users (
     password_hash         VARCHAR(255) NOT NULL,
     full_name             VARCHAR(255) NOT NULL,
     national_id           VARCHAR(50)  NULL UNIQUE,
-    role                  ENUM('buyer','seller','both','admin') NOT NULL DEFAULT 'both',
+    role                  ENUM('buyer','seller','both','admin','super_admin') NOT NULL DEFAULT 'both',
     is_verified           TINYINT(1) NOT NULL DEFAULT 0,
     is_active             TINYINT(1) NOT NULL DEFAULT 1,
     avatar_url            VARCHAR(500) NULL,
@@ -328,8 +328,8 @@ VALUES (
   'Super Admin',
   'admin@moamalati.local',
   '000000000',
-  '$2b$12$4Nn8yq7pQXNQxKMxA5nS8O0mQKq3n6oR9y8YrJcH7yTfE.p5Q6bO2',
-  'admin', 1, 1, 'verified'
+  '$2b$12$lrXwXVzguO5pUrCHReoKR.dGxRZiU2h8ABoJisGMhssKS6d1NwTMS',
+  'super_admin', 1, 1, 'verified'
 );
 INSERT INTO admins (id, user_id, role, is_active)
 VALUES (
@@ -350,8 +350,7 @@ INSERT INTO system_settings (setting_key, setting_value, description) VALUES
 SET FOREIGN_KEY_CHECKS = 1;
 
 -- =============================================================================
--- IMPORTANT: after running this file, create a fresh super_admin with a known
--- password by executing:
+-- Optional: after running this file, you can reset/create a super_admin with:
 --   python backend/create_admin.py --email admin@moamalati.local --password 'Admin@12345'
 -- (the seeded bcrypt hash above is a placeholder; the script updates it).
 -- =============================================================================
