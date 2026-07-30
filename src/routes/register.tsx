@@ -52,7 +52,7 @@ function Register() {
       });
       const data = response.data;
       login(
-        { id: data.user_id, name: data.full_name, email: form.email, role: "user" },
+        { id: data.user_id, name: data.full_name, email: form.email, role: "user", admin_role: null },
         data.access_token,
       );
       toast.success("تم إنشاء الحساب بنجاح");
