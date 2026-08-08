@@ -354,3 +354,17 @@ SET FOREIGN_KEY_CHECKS = 1;
 --   python backend/create_admin.py --email admin@moamalati.local --password 'Admin@12345'
 -- (the seeded bcrypt hash above is a placeholder; the script updates it).
 -- =============================================================================
+
+-- ── RAG documents (local embeddings store) ───────────────────────────────
+CREATE TABLE IF NOT EXISTS rag_documents (
+  id          CHAR(36)     NOT NULL PRIMARY KEY,
+  source      VARCHAR(50)  NOT NULL,
+  source_id   VARCHAR(64)  NULL,
+  title       VARCHAR(255) NULL,
+  chunk_index INT          NOT NULL DEFAULT 0,
+  content     TEXT         NOT NULL,
+  embedding   LONGTEXT     NOT NULL,
+  metadata    JSON         NULL,
+  created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_rag_source (source, source_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

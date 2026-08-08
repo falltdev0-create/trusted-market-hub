@@ -133,3 +133,15 @@ export const adminApi = {
   updateSetting: (key: string, value: any) =>
     api.put(`/admin/settings/${key}`, { value }),
 };
+
+export const ragApi = {
+  status: () => api.get("/rag/status"),
+  search: (query: string, top_k = 5, source?: string) =>
+    api.post("/rag/search", { query, top_k, source }),
+  ask: (question: string, top_k = 5, source?: string) =>
+    api.post("/rag/ask", { question, top_k, source }),
+  indexListings: () => api.post("/rag/index/listings"),
+  index: (doc: { source?: string; source_id?: string; title?: string; content: string; metadata?: any }) =>
+    api.post("/rag/index", doc),
+  remove: (id: string) => api.delete(`/rag/documents/${id}`),
+};
