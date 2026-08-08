@@ -29,6 +29,18 @@ from app.services.ai_service import get_ai_service
 router = APIRouter()
 
 
+async def _get_owned(listing_id: str, current_user: User, db: AsyncSession) -> Listing:
+    """404 عندما لا يوجد الإعلان، و403 فقط عند محاولة الوصول لإعلان مستخدم آخر."""
+    listing = await db.get(Listing, listing_id)
+    if not listing:
+        raise HTTPException(404, "الإعلان غير موجود أو انتهت جلسة الإنشاء، ابدأ إعلاناً جديداً")
+    role = current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)
+    if str(listing.seller_id) != str(current_user.id) and role not in ("admin", "super_admin"):
+        raise HTTPException(403, "غير مصرح لك بتعديل هذا الإعلان")
+    return listing
+
+
+
 class ListingCreateIn(BaseModel):
     kind: Optional[str] = None
     category: Optional[str] = None
@@ -214,9 +226,7 @@ async def update_details(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    listing = await db.get(Listing, listing_id)
-    if not listing or str(listing.seller_id) != str(current_user.id):
-        raise HTTPException(403, "غير مصرح")
+    listing = await _get_owned(listing_id, current_user, db)
 
     details = body.details or {}
     listing.details = details
@@ -234,9 +244,7 @@ async def price_estimate(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    listing = await db.get(Listing, listing_id)
-    if not listing or str(listing.seller_id) != str(current_user.id):
-        raise HTTPException(403, "غير مصرح")
+    listing = await _get_owned(listing_id, current_user, db)
     ai = get_ai_service()
     result = await ai.estimate_price(
         category=listing.category.value,
@@ -265,9 +273,7 @@ async def set_price(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    listing = await db.get(Listing, listing_id)
-    if not listing or str(listing.seller_id) != str(current_user.id):
-        raise HTTPException(403, "غير مصرح")
+    listing = await _get_owned(listing_id, current_user, db)
     if body.price <= 0:
         raise HTTPException(400, "أدخل سعراً صحيحاً")
 
@@ -285,9 +291,7 @@ async def submit_for_review(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    listing = await db.get(Listing, listing_id)
-    if not listing or str(listing.seller_id) != str(current_user.id):
-        raise HTTPException(403, "غير مصرح")
+    listing = await _get_owned(listing_id, current_user, db)
     if not listing.price:
         raise HTTPException(400, "يجب تحديد السعر قبل إرسال الإعلان")
     listing.status = ListingStatus.pending_review
@@ -309,9 +313,7 @@ async def publish_listing(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    listing = await db.get(Listing, listing_id)
-    if not listing or str(listing.seller_id) != str(current_user.id):
-        raise HTTPException(403, "غير مصرح")
+    listing = await _get_owned(listing_id, current_user, db)
     if listing.status not in [ListingStatus.price_set, ListingStatus.pending_review]:
         raise HTTPException(400, f"لا يمكن نشر الإعلان من حالة {listing.status.value}")
     listing.status = ListingStatus.published
