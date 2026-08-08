@@ -6,7 +6,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuthStore } from "@/stores/auth";
-import { adminApi, tryApi } from "@/lib/api";
+import { adminApi, usersApi, tryApi } from "@/lib/api";
 import { MOCK_LISTINGS } from "@/lib/mock-data";
 
 export const Route = createFileRoute("/admin")({
@@ -64,7 +64,7 @@ function AdminPage() {
     if (!isLoggedIn) return;
     usersApi
       .me()
-      .then((r) => {
+      .then((r: any) => {
         const me = r.data ?? {};
         const token = useAuthStore.getState().token ?? "";
         login(
