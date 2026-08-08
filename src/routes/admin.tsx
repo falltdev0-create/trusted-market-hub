@@ -34,18 +34,57 @@ const TABS: { id: Tab; label: string; icon: any; role: "any" | "super_admin" }[]
   { id: "settings", label: "الإعدادات",       icon: Settings2,       role: "super_admin" },
 ];
 
+const ROLE_LABEL: Record<string, string> = {
+  super_admin: "مدير عام (Super Admin)",
+  admin: "مشرف (Admin)",
+  moderator: "مُنسّق (Moderator)",
+  reviewer: "مُراجع (Reviewer)",
+};
+
 function AdminPage() {
-  const { user, isLoggedIn } = useAuthStore();
+  const { user, isLoggedIn, login } = useAuthStore();
   const nav = useNavigate();
   const [tab, setTab] = useState<Tab>("dash");
+  const [viewAs, setViewAs] = useState<string | null>(null);
 
-  // Treat any admin/super_admin as authorized in the UI; the backend enforces the real hierarchy.
-  const adminRole = (user as any)?.admin_role ?? (user?.role === "admin" ? "admin" : null);
+  // الدور الحقيقي يأتي من الـ API؛ الواجهة تعكسه فقط والباكند يفرض التسلسل الهرمي.
+  const realRole: string | null =
+    (user as any)?.admin_role ??
+    (user?.role === "super_admin" ? "super_admin" : user?.role === "admin" ? "admin" : null);
+  const adminRole = viewAs ?? realRole;
   const isSuper = adminRole === "super_admin";
+  const canSwitch = realRole === "super_admin";
 
   useEffect(() => {
     if (!isLoggedIn) nav({ to: "/login" });
   }, [isLoggedIn, nav]);
+
+  // مزامنة الدور من الـ API عند فتح اللوحة
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    usersApi
+      .me()
+      .then((r) => {
+        const me = r.data ?? {};
+        const token = useAuthStore.getState().token ?? "";
+        login(
+          {
+            id: String(me.id ?? user?.id ?? ""),
+            name: me.full_name ?? user?.name ?? "",
+            email: me.email ?? user?.email ?? "",
+            role: me.role ?? user?.role,
+            admin_role: me.admin_role ?? null,
+          },
+          token,
+        );
+      })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoggedIn]);
+
+  useEffect(() => {
+    if (viewAs && !canSwitch) setViewAs(null);
+  }, [viewAs, canSwitch]);
 
   const visibleTabs = useMemo(
     () => TABS.filter((t) => t.role === "any" || isSuper),
@@ -59,8 +98,26 @@ function AdminPage() {
           <div className="mb-3 rounded-lg bg-primary/5 p-3">
             <div className="text-xs text-muted-foreground">الدور</div>
             <div className="font-bold text-primary">
-              {isSuper ? "مدير عام (Super Admin)" : adminRole ? adminRole : "مشرف"}
+              {adminRole ? (ROLE_LABEL[adminRole] ?? adminRole) : "مشرف"}
             </div>
+            {canSwitch && (
+              <button
+                onClick={() => {
+                  const next = isSuper ? "admin" : null;
+                  setViewAs(next);
+                  setTab("dash");
+                  toast.info(next ? "تم التبديل إلى مسار المشرف" : "تم الرجوع لمسار المدير العام");
+                }}
+                className="mt-3 w-full rounded-lg border border-primary/30 bg-card px-2 py-1.5 text-xs font-bold text-primary transition hover:bg-primary/10"
+              >
+                {isSuper ? "عرض كمشرف عادي" : "العودة لصلاحيات المدير العام"}
+              </button>
+            )}
+            {viewAs && (
+              <div className="mt-2 rounded-md bg-warning/10 px-2 py-1 text-[11px] font-semibold text-warning">
+                وضع معاينة — صلاحياتك الفعلية: مدير عام
+              </div>
+            )}
           </div>
           <ul className="space-y-1">
             {visibleTabs.map((n) => (
