@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as VerificationRouteImport } from './routes/verification'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as RegisterRouteImport } from './routes/register'
+import { Route as RagRouteImport } from './routes/rag'
 import { Route as NotificationsRouteImport } from './routes/notifications'
 import { Route as MyListingsRouteImport } from './routes/my-listings'
 import { Route as MarketplaceRouteImport } from './routes/marketplace'
@@ -41,6 +42,11 @@ const SettingsRoute = SettingsRouteImport.update({
 const RegisterRoute = RegisterRouteImport.update({
   id: '/register',
   path: '/register',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RagRoute = RagRouteImport.update({
+  id: '/rag',
+  path: '/rag',
   getParentRoute: () => rootRouteImport,
 } as any)
 const NotificationsRoute = NotificationsRouteImport.update({
@@ -128,6 +134,7 @@ export interface FileRoutesByFullPath {
   '/marketplace': typeof MarketplaceRoute
   '/my-listings': typeof MyListingsRoute
   '/notifications': typeof NotificationsRoute
+  '/rag': typeof RagRoute
   '/register': typeof RegisterRoute
   '/settings': typeof SettingsRoute
   '/verification': typeof VerificationRoute
@@ -148,6 +155,7 @@ export interface FileRoutesByTo {
   '/marketplace': typeof MarketplaceRoute
   '/my-listings': typeof MyListingsRoute
   '/notifications': typeof NotificationsRoute
+  '/rag': typeof RagRoute
   '/register': typeof RegisterRoute
   '/settings': typeof SettingsRoute
   '/verification': typeof VerificationRoute
@@ -169,6 +177,7 @@ export interface FileRoutesById {
   '/marketplace': typeof MarketplaceRoute
   '/my-listings': typeof MyListingsRoute
   '/notifications': typeof NotificationsRoute
+  '/rag': typeof RagRoute
   '/register': typeof RegisterRoute
   '/settings': typeof SettingsRoute
   '/verification': typeof VerificationRoute
@@ -191,6 +200,7 @@ export interface FileRouteTypes {
     | '/marketplace'
     | '/my-listings'
     | '/notifications'
+    | '/rag'
     | '/register'
     | '/settings'
     | '/verification'
@@ -211,6 +221,7 @@ export interface FileRouteTypes {
     | '/marketplace'
     | '/my-listings'
     | '/notifications'
+    | '/rag'
     | '/register'
     | '/settings'
     | '/verification'
@@ -231,6 +242,7 @@ export interface FileRouteTypes {
     | '/marketplace'
     | '/my-listings'
     | '/notifications'
+    | '/rag'
     | '/register'
     | '/settings'
     | '/verification'
@@ -252,6 +264,7 @@ export interface RootRouteChildren {
   MarketplaceRoute: typeof MarketplaceRoute
   MyListingsRoute: typeof MyListingsRoute
   NotificationsRoute: typeof NotificationsRoute
+  RagRoute: typeof RagRoute
   RegisterRoute: typeof RegisterRoute
   SettingsRoute: typeof SettingsRoute
   VerificationRoute: typeof VerificationRoute
@@ -285,6 +298,13 @@ declare module '@tanstack/react-router' {
       path: '/register'
       fullPath: '/register'
       preLoaderRoute: typeof RegisterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/rag': {
+      id: '/rag'
+      path: '/rag'
+      fullPath: '/rag'
+      preLoaderRoute: typeof RagRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/notifications': {
@@ -404,6 +424,7 @@ const rootRouteChildren: RootRouteChildren = {
   MarketplaceRoute: MarketplaceRoute,
   MyListingsRoute: MyListingsRoute,
   NotificationsRoute: NotificationsRoute,
+  RagRoute: RagRoute,
   RegisterRoute: RegisterRoute,
   SettingsRoute: SettingsRoute,
   VerificationRoute: VerificationRoute,
