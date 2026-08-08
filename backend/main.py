@@ -2,7 +2,7 @@
 مسكن — Backend Entry Point
 FastAPI + PostgreSQL Async + WebSocket Chat + AI Pipeline
 """
-from app.api.routes import kyc
+from app.api.routes import kyc, rag
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -56,6 +56,7 @@ app.include_router(admin.router,        prefix=f"{V1}/admin",        tags=["Admi
 app.include_router(upload.router,       prefix=f"{V1}/upload",       tags=["Upload"])
 app.include_router(notifications.router, prefix=f"{V1}/notifications", tags=["Notifications"])
 app.include_router(kyc.router,          prefix=f"{V1}/kyc",          tags=["KYC"])
+app.include_router(rag.router,          prefix=f"{V1}/rag",          tags=["RAG"])
 
 
 @app.get("/health")
