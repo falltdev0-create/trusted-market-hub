@@ -5,9 +5,9 @@
 --   mysql -u root -p < backend/maskan_mysql.sql
 -- =============================================================================
 
-DROP DATABASE IF EXISTS maskandaba;
-CREATE DATABASE maskandaba CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE maskandaba;
+DROP DATABASE IF EXISTS maskan_db;
+CREATE DATABASE maskan_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE maskan_db;
 
 SET FOREIGN_KEY_CHECKS = 0;
 
@@ -319,14 +319,14 @@ INSERT INTO admin_permissions (role, permission_key) VALUES
   ('reviewer','listings.review'), ('reviewer','kyc.review'), ('reviewer','users.view');
 
 -- Default super admin
---   email:    admin@moamalati.local
+--   email:    admin@moamalati.com
 --   password: Admin@12345
 -- bcrypt hash (rounds=12) for "Admin@12345"
 INSERT INTO users (id, full_name, email, phone, password_hash, role, is_verified, is_active, kyc_status)
 VALUES (
   'a0000000-0000-0000-0000-000000000001',
   'Super Admin',
-  'admin@moamalati.local',
+  'admin@moamalati.com',
   '000000000',
   '$2b$12$lrXwXVzguO5pUrCHReoKR.dGxRZiU2h8ABoJisGMhssKS6d1NwTMS',
   'super_admin', 1, 1, 'verified'
@@ -351,20 +351,7 @@ SET FOREIGN_KEY_CHECKS = 1;
 
 -- =============================================================================
 -- Optional: after running this file, you can reset/create a super_admin with:
---   python backend/create_admin.py --email admin@moamalati.local --password 'Admin@12345'
+--   python backend/create_admin.py --email admin@moamalati.com --password 'Admin@12345'
+-- for login as a user --email abc@gmail.com --password 'ABC12345@'
 -- (the seeded bcrypt hash above is a placeholder; the script updates it).
 -- =============================================================================
-
--- ── RAG documents (local embeddings store) ───────────────────────────────
-CREATE TABLE IF NOT EXISTS rag_documents (
-  id          CHAR(36)     NOT NULL PRIMARY KEY,
-  source      VARCHAR(50)  NOT NULL,
-  source_id   VARCHAR(64)  NULL,
-  title       VARCHAR(255) NULL,
-  chunk_index INT          NOT NULL DEFAULT 0,
-  content     TEXT         NOT NULL,
-  embedding   LONGTEXT     NOT NULL,
-  metadata    JSON         NULL,
-  created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  INDEX idx_rag_source (source, source_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

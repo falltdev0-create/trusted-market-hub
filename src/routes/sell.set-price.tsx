@@ -1,76 +1,31 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { Rocket, Info } from "lucide-react";
+import { useState } from "react";
+import { Rocket, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { StepProgress } from "@/components/StepProgress";
 import { useListingStore } from "@/stores/listing";
-import { listingsApi, tryApi } from "@/lib/api";
-import { PriceTierBadge, computeTier, type PriceTier } from "@/components/PriceTierBadge";
+import { listingsApi } from "@/lib/api";
 
 export const Route = createFileRoute("/sell/set-price")({
-  head: () => ({
-    meta: [
-      { title: "تحديد السعر — معاملاتي" },
-      { name: "description", content: "حدد سعر إعلانك بحرية. سيظهر تصنيف السعر (رخيص/متوسط/غالي) تلقائياً للمشترين." },
-    ],
-  }),
+  head: () => ({ meta: [{ title: "تحديد السعر — مسكن" }] }),
   component: SetPrice,
 });
 
-type Estimate = {
-  suggested_min: number;
-  suggested_max: number;
-  market_avg?: number;
-  tier?: PriceTier;
-};
-
 function SetPrice() {
   const { draft, setPrice, reset } = useListingStore();
-  const category = draft.kind?.split("_")[1] ?? "property";
-  const [price, setLocal] = useState<number>(draft.price ?? 100_000);
-  const [estimate, setEst] = useState<Estimate | null>(null);
+  const max = draft.priceMax ?? 1000000;
+  const [price, setLocal] = useState(draft.price ?? Math.floor(max / 2));
   const [submitted, setSubmitted] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
   const nav = useNavigate();
 
-  // Fetch AI price estimate (informational — not a cap)
-  useEffect(() => {
-    if (!draft.id || draft.id.startsWith("local-")) {
-      // offline hint
-      const fallback: Record<string, Estimate> = {
-        property: { suggested_min: 500_000, suggested_max: 3_000_000, market_avg: 1_500_000 },
-        house:    { suggested_min: 500_000, suggested_max: 3_000_000, market_avg: 1_500_000 },
-        car:      { suggested_min: 800_000, suggested_max: 3_500_000, market_avg: 1_800_000 },
-      };
-      setEst(fallback[category] ?? fallback.property);
-      return;
-    }
-    (async () => {
-      const data = await tryApi(
-        () => listingsApi.priceEstimate(draft.id!).then((r) => r.data as Estimate),
-        { suggested_min: 500_000, suggested_max: 3_000_000, market_avg: 1_500_000 },
-      );
-      setEst(data);
-    })();
-  }, [draft.id, category]);
-
-  const tier: PriceTier = estimate?.tier
-    ? computeTier(price, category)  // recompute against user-entered price
-    : computeTier(price, category);
-
   async function submit() {
-    if (!price || price <= 0) {
-      toast.error("أدخل سعراً صحيحاً");
-      return;
-    }
+    if (price > max) { toast.error("السعر يتجاوز الحد المسموح"); return; }
     setPrice(price);
-    setSubmitting(true);
     if (draft.id && !draft.id.startsWith("local-")) {
       try {
         await listingsApi.setPrice(draft.id, price);
         await listingsApi.submitForReview(draft.id);
       } catch (e: any) {
-        setSubmitting(false);
         toast.error(e?.response?.data?.detail ?? "تعذّر رفع الإعلان");
         return;
       }
@@ -90,48 +45,20 @@ function SetPrice() {
     );
   }
 
-  const mid = estimate ? Math.round((estimate.suggested_min + estimate.suggested_max) / 2) : 0;
-
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">
       <StepProgress current={6} total={6} label="تحديد السعر" />
-      <h1 className="mb-2 text-3xl font-bold">حدد سعر إعلانك بحرية</h1>
+      <h1 className="mb-2 text-3xl font-bold">حدد سعر إعلانك</h1>
       <p className="mb-6 text-muted-foreground">
-        أنت تختار السعر — والذكاء الاصطناعي يعرض تصنيفاً إرشادياً للمشترين (رخيص / متوسط / غالي).
+        الحد الأقصى المسموح:{" "}
+        <span className="font-bold text-accent">{max.toLocaleString()} جنيه</span>
       </p>
 
-      {/* Estimate card */}
-      {estimate && (
-        <div className="mb-6 rounded-2xl border bg-primary/5 p-5">
-          <div className="mb-3 flex items-center gap-2 font-bold text-primary">
-            <Info className="h-5 w-5" /> الإرشاد التسعيري
-          </div>
-          <div className="grid grid-cols-3 gap-3 text-center">
-            <div>
-              <div className="text-xs text-muted-foreground">نطاق منخفض</div>
-              <div className="text-lg font-extrabold">{estimate.suggested_min.toLocaleString()}</div>
-            </div>
-            <div>
-              <div className="text-xs text-muted-foreground">متوسط السوق</div>
-              <div className="text-lg font-extrabold text-primary">{(estimate.market_avg ?? mid).toLocaleString()}</div>
-            </div>
-            <div>
-              <div className="text-xs text-muted-foreground">نطاق مرتفع</div>
-              <div className="text-lg font-extrabold">{estimate.suggested_max.toLocaleString()}</div>
-            </div>
-          </div>
-        </div>
-      )}
-
       <div className="rounded-2xl border bg-card p-6">
-        <div className="mb-2 flex items-center justify-between">
-          <label className="block text-sm font-semibold">السعر المطلوب (بحرية)</label>
-          <PriceTierBadge tier={tier} />
-        </div>
+        <label className="mb-2 block text-sm font-semibold">السعر المطلوب</label>
         <div className="relative">
           <input
             type="number"
-            min={0}
             value={price}
             onChange={(e) => setLocal(+e.target.value)}
             className="w-full rounded-lg border-2 border-primary/20 bg-background px-4 py-4 pe-20 text-3xl font-bold text-primary outline-none focus:border-primary"
@@ -141,13 +68,19 @@ function SetPrice() {
           </span>
         </div>
 
-        <p className="mt-3 text-xs text-muted-foreground">
-          لا يوجد حد أقصى ثابت. سيتم عرض التصنيف السعري بجانب إعلانك حتى يستطيع المشترون المقارنة.
-        </p>
+        <input
+          type="range"
+          min={0}
+          max={max}
+          step={1000}
+          value={price}
+          onChange={(e) => setLocal(+e.target.value)}
+          className="mt-4 w-full accent-primary"
+        />
 
-        {estimate && (price < estimate.suggested_min * 0.5 || price > estimate.suggested_max * 2) && (
-          <div className="mt-3 rounded-lg bg-warning/10 p-3 text-sm text-warning">
-            سعرك بعيد جداً عن نطاق السوق. هذا مسموح لكنه قد يقلّل من إقبال المشترين.
+        {price > max && (
+          <div className="mt-3 flex items-center gap-2 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
+            <AlertCircle className="h-4 w-4" /> السعر يتجاوز الحد الأقصى المسموح
           </div>
         )}
 
@@ -160,25 +93,21 @@ function SetPrice() {
             </div>
             <div className="flex justify-between">
               <dt className="text-muted-foreground">الحالة</dt>
-              <dd className="font-semibold">{draft.conditionScore ?? "—"}/100</dd>
+              <dd className="font-semibold">{draft.conditionScore}/100</dd>
             </div>
             <div className="flex justify-between">
               <dt className="text-muted-foreground">السعر</dt>
               <dd className="font-bold text-primary">{price.toLocaleString()} جنيه</dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="text-muted-foreground">التصنيف</dt>
-              <dd><PriceTierBadge tier={tier} size="sm" /></dd>
             </div>
           </dl>
         </div>
 
         <button
           onClick={submit}
-          disabled={submitting || price <= 0}
+          disabled={price > max || price <= 0}
           className="mt-6 flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-3.5 font-bold text-primary-foreground hover:bg-primary-light disabled:opacity-50"
         >
-          <Rocket className="h-5 w-5" /> {submitting ? "جاري الرفع..." : "رفع الإعلان للمراجعة"}
+          <Rocket className="h-5 w-5" /> رفع الإعلان للمراجعة
         </button>
       </div>
     </div>

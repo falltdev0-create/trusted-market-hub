@@ -5,11 +5,8 @@ app/core/config.py — إعدادات النظام الأساسية
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import List
 from functools import lru_cache
-from pydantic import model_validator
 
-HF_CONDITION_MODEL = "microsoft/resnet-50"
-HF_DOCUMENT_MODEL = "microsoft/trocr-large-handwritten"
-HF_PRICING_MODEL = "google/flan-t5-base"
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -19,37 +16,15 @@ class Settings(BaseSettings):
     # ── App ───────────────────────────────────────────────────────────────────
     APP_NAME:    str  = "maskan"
     APP_VERSION: str  = "2.0.0"
-    DEBUG:       str | bool = False
+    DEBUG:       bool = False
 
     # ── Database ──────────────────────────────────────────────────────────────
-    DATABASE_URL: str | None = None
-    DB_USER: str = "root"
-    DB_PASSWORD: str = ""
-    DB_HOST: str = "localhost"
-    DB_PORT: int = 3306
-    DB_NAME: str = "maskandaba"
-
+    DATABASE_URL:    str = "postgresql+asyncpg://postgres:password@localhost:5432/moamalati"
     DB_POOL_SIZE:    int = 20
     DB_MAX_OVERFLOW: int = 40
 
-    @model_validator(mode="after")
-    def assemble_database_url(self):
-        # Coerce DEBUG if it's accidentally provided as a string (e.g. 'release')
-        if isinstance(self.DEBUG, str):
-            self.DEBUG = self.DEBUG.lower() in ("1", "true", "yes", "y", "on")
-
-        if self.DATABASE_URL:
-            return self
-
-        password_segment = f":{self.DB_PASSWORD}" if self.DB_PASSWORD else ""
-        self.DATABASE_URL = (
-            f"mysql+aiomysql://{self.DB_USER}{password_segment}"
-            f"@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
-        )
-        return self
-
     # ── Redis ─────────────────────────────────────────────────────────────────
-    REDIS_URL: str = "redis://127.0.0.1:6379"
+    REDIS_URL: str = "redis://localhost:6379"
 
     # ── JWT ───────────────────────────────────────────────────────────────────
     JWT_SECRET_KEY:            str = "CHANGE_IN_PRODUCTION"
@@ -66,10 +41,10 @@ class Settings(BaseSettings):
     STORAGE_SECURE:        bool = False
 
     # ── CORS ──────────────────────────────────────────────────────────────────
-    ALLOWED_ORIGINS_STR: str = "http://localhost:5173,http://localhost:3000"
-    @property
-    def ALLOWED_ORIGINS(self) -> List[str]:
-        return [origin.strip() for origin in self.ALLOWED_ORIGINS_STR.split(",")]
+    ALLOWED_ORIGINS: List[str] = [
+        "http://localhost:5173",
+        "https://moamalati.app",
+    ]
 
     # ── AI Model Paths ────────────────────────────────────────────────────────
     CONDITION_MODEL_PATH: str = "ai_models/condition_model/weights/model.pt"

@@ -1,6 +1,5 @@
 import { Link } from "@tanstack/react-router";
 import { BedDouble, Bath, Ruler, MapPin, ShieldCheck, Star } from "lucide-react";
-import { PriceTierBadge, computeTier, type PriceTier } from "@/components/PriceTierBadge";
 
 export interface Listing {
   id: string;
@@ -9,7 +8,7 @@ export interface Listing {
   area: string;
   price: number;
   kind: "sale" | "rent";
-  category: "property";
+  category: "property" ;
   grade: "excellent" | "good" | "poor";
   image: string;
   bedrooms?: number;
@@ -17,18 +16,16 @@ export interface Listing {
   size?: number;
   year?: number;
   km?: number;
-  price_tier?: PriceTier;
 }
 
 const gradeMap = {
   excellent: { label: "درجة أولى", color: "bg-success/10 text-success" },
-  good:      { label: "درجة ثانية", color: "bg-warning/10 text-warning" },
-  poor:      { label: "درجة ثالثة", color: "bg-destructive/10 text-destructive" },
+  good: { label: "درجة ثانية", color: "bg-warning/10 text-warning" },
+  poor: { label: "درجة ثالثة", color: "bg-destructive/10 text-destructive" },
 };
 
 export function ListingCard({ l }: { l: Listing }) {
   const g = gradeMap[l.grade];
-  const tier: PriceTier = l.price_tier ?? computeTier(l.price, l.category);
   return (
     <Link
       to="/listing/$id"
@@ -39,17 +36,15 @@ export function ListingCard({ l }: { l: Listing }) {
         <img
           src={l.image}
           alt={l.title}
-          loading="lazy"
           className="h-full w-full object-cover transition-transform group-hover:scale-105"
         />
         <div className="absolute right-3 top-3 rounded-md bg-primary px-2.5 py-1 text-xs font-bold text-primary-foreground">
           {l.kind === "sale" ? "بيع" : "إيجار"}
         </div>
-        <div className={`absolute left-3 top-3 flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-bold ${g.color}`}>
+        <div
+          className={`absolute left-3 top-3 flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-bold ${g.color}`}
+        >
           <Star className="h-3 w-3 fill-current" /> {g.label}
-        </div>
-        <div className="absolute bottom-3 left-3">
-          <PriceTierBadge tier={tier} size="sm" />
         </div>
       </div>
       <div className="p-4">
@@ -59,9 +54,15 @@ export function ListingCard({ l }: { l: Listing }) {
         </p>
         {l.category === "property" ? (
           <div className="mt-3 flex flex-wrap gap-3 text-xs text-muted-foreground">
-            <span className="flex items-center gap-1"><BedDouble className="h-3.5 w-3.5" /> {l.bedrooms} غرف</span>
-            <span className="flex items-center gap-1"><Bath className="h-3.5 w-3.5" /> {l.bathrooms} حمام</span>
-            <span className="flex items-center gap-1"><Ruler className="h-3.5 w-3.5" /> {l.size}م²</span>
+            <span className="flex items-center gap-1">
+              <BedDouble className="h-3.5 w-3.5" /> {l.bedrooms} غرف
+            </span>
+            <span className="flex items-center gap-1">
+              <Bath className="h-3.5 w-3.5" /> {l.bathrooms} حمام
+            </span>
+            <span className="flex items-center gap-1">
+              <Ruler className="h-3.5 w-3.5" /> {l.size}م²
+            </span>
           </div>
         ) : (
           <div className="mt-3 flex flex-wrap gap-3 text-xs text-muted-foreground">

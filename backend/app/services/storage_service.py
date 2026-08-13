@@ -1,119 +1,87 @@
 """
-app/services/storage_service.py — خدمة التخزين (MinIO/S3)
+app/services/storage_service.py — خدمة التخزين
+MinIO محلياً | AWS S3 في الإنتاج
 """
 
-from fastapi import UploadFile
-from minio import Minio
-from minio.error import S3Error
-from app.core.config import settings
+import io
 import uuid
-import os
+from functools import cached_property
+
+from app.core.config import settings
 
 
 class StorageService:
-    """خدمة التخزين"""
-    
-    def __init__(self):
-        try:
-            self.client = Minio(
-                settings.STORAGE_ENDPOINT,
-                access_key=settings.STORAGE_ACCESS_KEY,
-                secret_key=settings.STORAGE_SECRET_KEY,
-                secure=settings.STORAGE_SECURE,
+
+    async def upload_kyc_document(self,content: bytes,filename: str,user_id: str,doc_type: str,) -> str:
+
+            ext = self._ext(filename, "jpg")
+
+            key = f"kyc/{user_id}/{doc_type}_{uuid.uuid4().hex}.{ext}"
+
+            content_type = (
+                "application/pdf"
+                if ext == "pdf"
+                else f"image/{ext}"
             )
-            self._ensure_buckets()
-            self.use_minio = True
-        except Exception as e:
-            print(f"⚠️ Storage service unavailable, falling back to local storage: {e}")
-            self.client = None
-            self.use_minio = False
-            # local storage path
-            self.local_path = os.path.abspath(os.path.join(os.getcwd(), "uploads"))
-            os.makedirs(self.local_path, exist_ok=True)
-    
-    def _ensure_buckets(self):
-        """التأكد من وجود الـ buckets"""
-        try:
-            if not self.client:
-                return
-            for bucket in [settings.STORAGE_BUCKET_IMAGES, settings.STORAGE_BUCKET_DOCS]:
-                if not self.client.bucket_exists(bucket):
-                    self.client.make_bucket(bucket)
-                    print(f"✅ Bucket created: {bucket}")
-        except S3Error as e:
-            print(f"⚠️ Storage bucket error: {e}")
-    
-    async def upload_file(
-        self, 
-        file: UploadFile, 
-        path: str
+
+            self.client.put_object(
+                settings.STORAGE_BUCKET_DOCS,
+                key,
+                io.BytesIO(content),
+                length=len(content),
+                content_type=content_type,
+            )
+
+            return self._url(settings.STORAGE_BUCKET_DOCS, key)
+
+    @cached_property
+    def client(self):
+        from minio import Minio
+        client = Minio(
+            settings.STORAGE_ENDPOINT,
+            access_key=settings.STORAGE_ACCESS_KEY,
+            secret_key=settings.STORAGE_SECRET_KEY,
+            secure=settings.STORAGE_SECURE,
+        )
+        for bucket in [settings.STORAGE_BUCKET_IMAGES, settings.STORAGE_BUCKET_DOCS]:
+            if not client.bucket_exists(bucket):
+                client.make_bucket(bucket)
+        return client
+
+    async def upload_image(
+        self, content: bytes, filename: str, listing_id: str, index: int
     ) -> str:
-        """رفع ملف"""
-        try:
-            # اقرأ محتوى الملف
-            content = await file.read()
+        ext = self._ext(filename, "jpg")
+        key = f"listings/{listing_id}/images/{index:03d}_{uuid.uuid4().hex}.{ext}"
+        self.client.put_object(
+            settings.STORAGE_BUCKET_IMAGES, key,
+            io.BytesIO(content), length=len(content),
+            content_type=f"image/{ext}",
+        )
+        return self._url(settings.STORAGE_BUCKET_IMAGES, key)
 
-            if self.use_minio and self.client:
-                # حدد الـ bucket بناء على نوع الملف
-                bucket = (
-                    settings.STORAGE_BUCKET_IMAGES 
-                    if file.content_type.startswith("image")
-                    else settings.STORAGE_BUCKET_DOCS
-                )
+    async def upload_document(
+        self, content: bytes, filename: str, listing_id: str, doc_type: str
+    ) -> str:
+        ext = self._ext(filename, "pdf")
+        key = f"listings/{listing_id}/docs/{doc_type}_{uuid.uuid4().hex}.{ext}"
+        ct  = "application/pdf" if ext == "pdf" else f"image/{ext}"
+        self.client.put_object(
+            settings.STORAGE_BUCKET_DOCS, key,
+            io.BytesIO(content), length=len(content), content_type=ct,
+        )
+        return self._url(settings.STORAGE_BUCKET_DOCS, key)
 
-                # اسم الملف الفريد
-                file_key = f"{path}/{uuid.uuid4()}"
+    @staticmethod
+    def _ext(filename: str, default: str) -> str:
+        return filename.rsplit(".", 1)[-1].lower() if "." in filename else default
 
-                # رفع الملف
-                self.client.put_object(
-                    bucket,
-                    file_key,
-                    content,
-                    file.size,
-                    content_type=file.content_type,
-                )
-
-                # إرجاع الـ URL
-                url = f"/{bucket}/{file_key}"
-                return url
-            else:
-                # Fallback: save locally
-                ext = os.path.splitext(file.filename)[1]
-                fname = f"{uuid.uuid4()}{ext}"
-                subdir = os.path.join(self.local_path, path.replace('/', os.sep))
-                os.makedirs(subdir, exist_ok=True)
-                out_path = os.path.join(subdir, fname)
-                with open(out_path, 'wb') as f:
-                    f.write(content)
-                return out_path
-        except S3Error as e:
-            raise Exception(f"Upload failed: {e}")
+    @staticmethod
+    def _url(bucket: str, key: str) -> str:
+        return f"http://{settings.STORAGE_ENDPOINT}/{bucket}/{key}"
     
-    def delete_file(self, bucket: str, file_key: str) -> bool:
-        """حذف ملف"""
-        try:
-            if self.use_minio and self.client:
-                self.client.remove_object(bucket, file_key)
-            else:
-                # local fallback: remove file if exists
-                try:
-                    os.remove(file_key)
-                except Exception:
-                    pass
-            return True
-        except S3Error as e:
-            print(f"Delete failed: {e}")
-            return False
+    
 
 
-_storage_service = None
-
-def get_storage_service() -> StorageService:
-    """احصل على instance من StorageService"""
-    global _storage_service
-    if _storage_service is None:
-        _storage_service = StorageService()
-    return _storage_service
-
-
-#storage_service = get_storage_service()
+# Singleton
+storage_service = StorageService()

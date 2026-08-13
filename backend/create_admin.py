@@ -1,45 +1,46 @@
-"""
-backend/create_admin.py — Create or upgrade the first super_admin.
+import asyncio
+import uuid
 
-Usage:
-    python backend/create_admin.py --email admin@moamalati.local --password 'Admin@12345' --name 'Super Admin'
-"""
-import argparse, asyncio, os, sys, uuid
-from sqlalchemy import text
+from passlib.context import CryptContext
 
-sys.path.insert(0, os.path.dirname(__file__))
-from app.core.database import AsyncSessionLocal
-from app.core.security import hash_password
+from app.core.database import AsyncSessionLocal, create_tables
+from app.models.models import User, UserRole, KYCStatus
+
+pwd = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
-async def run(email: str, password: str, name: str, phone: str):
-    async with AsyncSessionLocal() as db:
-        row = (await db.execute(text("SELECT id FROM users WHERE email = :e"), {"e": email})).first()
-        if row:
-            uid = row[0]
-            await db.execute(text("UPDATE users SET password_hash=:p, role='super_admin', kyc_status='verified', is_verified=1, is_active=1 WHERE id=:id"),
-                             {"p": hash_password(password), "id": uid})
-        else:
-            uid = str(uuid.uuid4())
-            await db.execute(text("""INSERT INTO users (id, full_name, email, phone, password_hash, role, kyc_status, is_verified, is_active, created_at)
-                VALUES (:id, :n, :e, :ph, :p, 'super_admin', 'verified', 1, 1, NOW())"""),
-                {"id": uid, "n": name, "e": email, "ph": phone, "p": hash_password(password)})
+async def main():
+    await create_tables()
 
-        arow = (await db.execute(text("SELECT id FROM admins WHERE user_id = :u"), {"u": uid})).first()
-        if arow:
-            await db.execute(text("UPDATE admins SET role='super_admin', is_active=1 WHERE id=:id"), {"id": arow[0]})
-        else:
-            await db.execute(text("INSERT INTO admins (id, user_id, role, is_active, created_at) VALUES (:id, :u, 'super_admin', 1, NOW())"),
-                             {"id": str(uuid.uuid4()), "u": uid})
-        await db.commit()
-        print(f"✅ super_admin ready: {email}  (user_id={uid})")
+    admin_email = input("Admin email: ").strip()
+    admin_password = input("Admin password: ").strip()
+    full_name = input("Full name [Admin]: ").strip() or "Admin"
+
+    async with AsyncSessionLocal() as session:
+        from sqlalchemy import select
+
+        result = await session.execute(select(User).where(User.email == admin_email))
+        existing = result.scalar_one_or_none()
+        if existing:
+            print("User already exists:", existing.email)
+            return
+
+        user = User(
+            id=uuid.uuid4(),
+            email=admin_email,
+            phone="0000000000",
+            password_hash=pwd.hash(admin_password),
+            full_name=full_name,
+            role=UserRole.admin,
+            kyc_status=KYCStatus.approved,
+            is_verified=True,
+            is_active=True,
+        )
+
+        session.add(user)
+        await session.commit()
+        print("Admin user created:", admin_email)
 
 
 if __name__ == "__main__":
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--email", default="admin@moamalati.local")
-    ap.add_argument("--password", default="Admin@12345")
-    ap.add_argument("--name", default="Super Admin")
-    ap.add_argument("--phone", default="000000000")
-    a = ap.parse_args()
-    asyncio.run(run(a.email, a.password, a.name, a.phone))
+    asyncio.run(main())

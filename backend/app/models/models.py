@@ -12,6 +12,7 @@ from sqlalchemy import (
     Column, String, Text, Boolean, DateTime,
     Float, Integer, Enum, ForeignKey, JSON, Index
 )
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
 from app.core.database import Base
@@ -22,20 +23,16 @@ from app.core.database import Base
 # ══════════════════════════════════════════════════════════════════════════════
 
 class UserRole(str, enum.Enum):
-    buyer       = "buyer"
-    seller      = "seller"
-    both        = "both"
-    admin       = "admin"
-    super_admin = "super_admin"  # legacy/display only; real hierarchy is in admins.role
+    buyer  = "buyer"
+    seller = "seller"
+    both   = "both"
+    admin  = "admin"
 
 
 class KYCStatus(str, enum.Enum):
-    unverified = "unverified"
-    pending    = "pending"
-    verified   = "verified"
-    rejected   = "rejected"
-    # Legacy alias — some old code paths still reference `approved`
-    approved   = "verified"
+    pending  = "pending"
+    approved = "approved"
+    rejected = "rejected"
 
 
 class ListingCategory(str, enum.Enum):
@@ -80,7 +77,7 @@ class DocMatchStatus(str, enum.Enum):
 class User(Base):
     __tablename__ = "users"
 
-    id                   = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    id                   = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     email                = Column(String(255), unique=True, nullable=False, index=True)
     phone                = Column(String(20),  unique=True, nullable=False)
     password_hash        = Column(String(255), nullable=False)
@@ -90,7 +87,7 @@ class User(Base):
     is_verified          = Column(Boolean, default=False)
     is_active            = Column(Boolean, default=True)
     avatar_url           = Column(String(500), nullable=True)
-    kyc_status           = Column(Enum(KYCStatus), default=KYCStatus.unverified)
+    kyc_status           = Column(Enum(KYCStatus), default=KYCStatus.pending)
     selfie_url           = Column(String(500), nullable=True)
     kyc_doc_url          = Column(String(500), nullable=True)
     disclaimer_signed    = Column(Boolean, default=False)
@@ -115,8 +112,8 @@ class Listing(Base):
         Index("ix_listing_city_status",     "city", "status"),
     )
 
-    id               = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    seller_id        = Column(String(36), ForeignKey("users.id"), nullable=False)
+    id               = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    seller_id        = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     category         = Column(Enum(ListingCategory), nullable=False)
     listing_type     = Column(Enum(ListingType), nullable=False)
     title            = Column(String(255), nullable=False)
@@ -126,9 +123,6 @@ class Listing(Base):
     district         = Column(String(100), nullable=True)
     price            = Column(Float, nullable=True)
     price_max_limit  = Column(Float, nullable=True)
-    price_tier       = Column(Enum("cheap", "medium", "expensive", name="price_tier_enum"), nullable=True)
-    suggested_min    = Column(Float, nullable=True)
-    suggested_max    = Column(Float, nullable=True)
     currency         = Column(String(10), default="SDG")
     condition_grade  = Column(Enum(ConditionGrade), nullable=True)
     condition_score  = Column(Float, nullable=True)
@@ -150,10 +144,8 @@ class Listing(Base):
 class ListingImage(Base):
     __tablename__ = "listing_images"
 
-    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-
-
-    listing_id = Column(String(36), ForeignKey("listings.id"), nullable=False)
+    id         = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    listing_id = Column(UUID(as_uuid=True), ForeignKey("listings.id"), nullable=False)
     url        = Column(String(500), nullable=False)
     image_type = Column(String(50), default="item")   # item | exterior | interior
     order      = Column(Integer, default=0)
@@ -165,8 +157,8 @@ class ListingImage(Base):
 class ListingVerification(Base):
     __tablename__ = "listing_verifications"
 
-    id                = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    listing_id        = Column(String(36), ForeignKey("listings.id"),
+    id                = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    listing_id        = Column(UUID(as_uuid=True), ForeignKey("listings.id"),
                                unique=True, nullable=False)
     owner_id_doc_url  = Column(String(500), nullable=True)
     ownership_doc_url = Column(String(500), nullable=True)
@@ -174,7 +166,7 @@ class ListingVerification(Base):
     match_status      = Column(Enum(DocMatchStatus), default=DocMatchStatus.pending)
     match_details     = Column(JSON, nullable=True)
     rejection_reason  = Column(Text, nullable=True)
-    reviewed_by       = Column(String(36), nullable=True)
+    reviewed_by       = Column(UUID(as_uuid=True), nullable=True)
     reviewed_at       = Column(DateTime, nullable=True)
     verified_at       = Column(DateTime, nullable=True)
 
@@ -188,10 +180,10 @@ class ListingVerification(Base):
 class Conversation(Base):
     __tablename__ = "conversations"
 
-    id                   = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    listing_id           = Column(String(36), ForeignKey("listings.id"), nullable=False)
-    buyer_id             = Column(String(36), ForeignKey("users.id"),    nullable=False)
-    seller_id            = Column(String(36), ForeignKey("users.id"),    nullable=False)
+    id                   = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    listing_id           = Column(UUID(as_uuid=True), ForeignKey("listings.id"), nullable=False)
+    buyer_id             = Column(UUID(as_uuid=True), ForeignKey("users.id"),    nullable=False)
+    seller_id            = Column(UUID(as_uuid=True), ForeignKey("users.id"),    nullable=False)
     disclaimer_signed    = Column(Boolean, default=False)
     disclaimer_signed_at = Column(DateTime, nullable=True)
     created_at           = Column(DateTime, default=datetime.utcnow)
@@ -203,9 +195,9 @@ class Conversation(Base):
 class Message(Base):
     __tablename__ = "messages"
 
-    id              = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    conversation_id = Column(String(36), ForeignKey("conversations.id"), nullable=False)
-    sender_id       = Column(String(36), ForeignKey("users.id"), nullable=False)
+    id              = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    conversation_id = Column(UUID(as_uuid=True), ForeignKey("conversations.id"), nullable=False)
+    sender_id       = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     content         = Column(Text, nullable=False)
     was_filtered    = Column(Boolean, default=False)
     is_read         = Column(Boolean, default=False)
@@ -223,10 +215,8 @@ class Message(Base):
 class Notification(Base):
     __tablename__ = "notifications"
 
-    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-
-
-    user_id    = Column(String(36), ForeignKey("users.id"), nullable=False)
+    id         = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id    = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     type       = Column(String(50), nullable=False)
     title      = Column(String(255), nullable=False)
     body       = Column(Text, nullable=True)
