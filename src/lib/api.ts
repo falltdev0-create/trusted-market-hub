@@ -49,6 +49,8 @@ export const authApi = {
 export const usersApi = {
   me: () => api.get("/users/me"),
 
+  startKyc: () => api.post("/kyc/start", {}),
+
   submitKYC: (formData: FormData) =>
   api.post("/kyc/submit", formData, {
     headers: {
@@ -56,6 +58,18 @@ export const usersApi = {
     },
   }),
 };
+
+export const ragApi = {
+  status: () => api.get("/rag/status"),
+  search: (query: string, top_k = 5, source?: string) =>
+    api.post("/rag/search", { query, top_k, source }),
+  ask: (question: string, top_k = 5, source?: string) =>
+    api.post("/rag/ask", { question, top_k, source }),
+  indexListings: () => api.post("/rag/index/listings"),
+  index: (body: { source?: string; source_id?: string; title?: string; content: string; metadata?: any }) =>
+    api.post("/rag/index", body),
+};
+
 
 export const listingsApi = {
   getAll: (params: Record<string, any>) => api.get("/listings/", { params }),
