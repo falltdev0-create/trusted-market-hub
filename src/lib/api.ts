@@ -49,8 +49,6 @@ export const authApi = {
 export const usersApi = {
   me: () => api.get("/users/me"),
 
-  startKyc: () => api.post("/kyc/start"),
-
   submitKYC: (formData: FormData) =>
   api.post("/kyc/submit", formData, {
     headers: {
@@ -104,15 +102,3 @@ export const adminApi = {
     api.post("/admin/reject-listing", { listing_id: listingId, admin_id: adminId, reason }),
 };
 
-
-export const ragApi = {
-  status: () => api.get("/rag/status"),
-  search: (query: string, top_k = 5, source?: string) =>
-    api.post("/rag/search", { query, top_k, source }).then((r) => r.data),
-  ask: (question: string, top_k = 5, source?: string) =>
-    api.post("/rag/ask", { question, top_k, source }).then((r) => r.data),
-  index: (data: { source?: string; source_id?: string; title?: string; content: string }) =>
-    api.post("/rag/index", data).then((r) => r.data),
-  indexListings: () => api.post("/rag/index/listings").then((r) => r.data),
-  remove: (id: string) => api.delete(`/rag/documents/${id}`).then((r) => r.data),
-};
