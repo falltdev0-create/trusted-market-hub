@@ -12,10 +12,33 @@ from sqlalchemy import (
     Column, String, Text, Boolean, DateTime,
     Float, Integer, Enum, ForeignKey, JSON, Index
 )
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.types import TypeDecorator, CHAR
 from sqlalchemy.orm import relationship
 
 from app.core.database import Base
+
+
+class GUID(TypeDecorator):
+    """معرّف عالمي قابل للنقل بين PostgreSQL / MySQL / SQLite"""
+    impl = CHAR(36)
+    cache_ok = True
+
+    def process_bind_param(self, value, dialect):
+        if value is None:
+            return None
+        return str(value)
+
+    def process_result_value(self, value, dialect):
+        if value is None:
+            return None
+        try:
+            return uuid.UUID(str(value))
+        except (ValueError, AttributeError):
+            return value
+
+
+def UUID(as_uuid=True):  # noqa: N802 — توافق مع الشيفرة القديمة
+    return GUID()
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -23,7 +46,8 @@ from app.core.database import Base
 # ══════════════════════════════════════════════════════════════════════════════
 
 class UserRole(str, enum.Enum):
-    buyer  = "buyer"
+    buyer       = "buyer"
+    super_admin = "super_admin"
     seller = "seller"
     both   = "both"
     admin  = "admin"
@@ -225,3 +249,28 @@ class Notification(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     user = relationship("User", back_populates="notifications")
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Admin: audit log + site settings
+# ══════════════════════════════════════════════════════════════════════════════
+
+class AdminAuditLog(Base):
+    __tablename__ = "admin_audit_logs"
+
+    id          = Column(GUID(), primary_key=True, default=uuid.uuid4)
+    admin_id    = Column(GUID(), ForeignKey("users.id"), nullable=True)
+    admin_name  = Column(String(255), nullable=True)
+    action      = Column(String(100), nullable=False)
+    target_type = Column(String(50),  nullable=True)
+    target_id   = Column(String(64),  nullable=True)
+    details     = Column(JSON, nullable=True)
+    created_at  = Column(DateTime, default=datetime.utcnow)
+
+
+class SiteSetting(Base):
+    __tablename__ = "site_settings"
+
+    key        = Column(String(100), primary_key=True)
+    value      = Column(JSON, nullable=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
