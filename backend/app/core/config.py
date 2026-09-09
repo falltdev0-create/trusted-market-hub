@@ -32,7 +32,11 @@ class Settings(BaseSettings):
     JWT_ACCESS_EXPIRE_MINUTES: int = 60
     JWT_REFRESH_EXPIRE_DAYS:   int = 30
 
-    # ── Storage (MinIO / S3) ──────────────────────────────────────────────────
+    # ── Storage ───────────────────────────────────────────────────────────────
+    # local = حفظ الملفات على قرص السيرفر (الافتراضي، يعمل دائماً)
+    STORAGE_BACKEND:       str  = "local"
+    STORAGE_LOCAL_DIR:     str  = "uploads"
+    PUBLIC_BASE_URL:       str  = "http://localhost:8000"
     STORAGE_ENDPOINT:      str  = "localhost:9000"
     STORAGE_ACCESS_KEY:    str  = "minioadmin"
     STORAGE_SECRET_KEY:    str  = "minioadmin"
@@ -43,6 +47,9 @@ class Settings(BaseSettings):
     # ── CORS ──────────────────────────────────────────────────────────────────
     ALLOWED_ORIGINS: List[str] = [
         "http://localhost:5173",
+        "http://localhost:8080",
+        "http://127.0.0.1:8080",
+        "http://localhost:3000",
         "https://moamalati.app",
     ]
 
