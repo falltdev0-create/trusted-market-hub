@@ -9,14 +9,20 @@ from sqlalchemy import select
 from typing import List
 import uuid
 
-from app.core.database import get_db
+from app.core.database import get_db, AsyncSessionLocal
+from app.core.config import settings
+from app.core.dynamic_settings import get_dynamic_setting
 from app.models.models import Listing, ListingImage, ListingStatus, ConditionGrade
-from app.services.storage_service import storage_service
-from app.services.ai_service import ai_service
+from app.services.storage_service import get_storage_service
+from app.services.ai_service import get_ai_service
 from app.api.routes.auth import get_current_user
 from app.models.models import User
 
 router = APIRouter()
+
+# Singletons
+storage_service = get_storage_service()
+ai_service = get_ai_service()
 
 ALLOWED_TYPES  = {"image/jpeg", "image/png", "image/webp", "image/heic"}
 MAX_IMAGE_SIZE = 20 * 1024 * 1024   # 20 MB
@@ -34,10 +40,11 @@ async def upload_listing_images(
     يرفع صور السلعة ويشغّل نموذج تقييم الحالة في الخلفية.
     يشترط 5 صور على الأقل لتغطية السلعة من جميع الجوانب.
     """
-    if not (5 <= len(images) <= 20):
-        raise HTTPException(422, "يجب رفع بين 5 و20 صورة")
+    min_images = await get_dynamic_setting(db, "min_listing_images", settings.MIN_LISTING_IMAGES)
+    if not (min_images <= len(images) <= 20):
+        raise HTTPException(422, f"يجب رفع بين {min_images} و20 صورة")
 
-    result  = await db.execute(select(Listing).where(Listing.id == uuid.UUID(listing_id)))
+    result  = await db.execute(select(Listing).where(Listing.id == listing_id))
     listing = result.scalar_one_or_none()
     if not listing:
         raise HTTPException(404, "الإعلان غير موجود")
@@ -60,8 +67,8 @@ async def upload_listing_images(
         url = await storage_service.upload_image(content, filename, listing_id, i)
         image_urls.append(url)
         db.add(ListingImage(
-            id=uuid.uuid4(),
-            listing_id=uuid.UUID(listing_id),
+            id=str(uuid.uuid4()),
+            listing_id=listing_id,
             url=url,
             image_type="exterior" if i < 3 else "interior",
             order=i,
@@ -70,24 +77,40 @@ async def upload_listing_images(
     listing.status = ListingStatus.images_uploaded
     await db.commit()
 
-    # AI condition assessment in background
+    # AI condition assessment in background.
+    # ملاحظة: `db` و`listing` أعلاه مرتبطان بجلسة الطلب الحالي، وهذه الجلسة
+    # تُغلق فور عودة الاستجابة — استخدامها هنا كان يُفشل الـ background task بصمت.
+    category_value     = listing.category.value
+    listing_type_value = listing.listing_type.value
+
     async def _run_assessment():
-        from app.core.config import settings
         try:
             image_bytes = [d[0] for d in images_data]
-            ai_result   = await ai_service.assess_condition(image_bytes, listing.category.value)
+            ai_result   = await ai_service.assess_condition(image_bytes, category_value)
 
             grade = ConditionGrade(ai_result["grade"])
-            cap   = settings.PRICE_CAPS.get(listing.category.value, {}) \
-                                       .get(listing.listing_type.value, {}) \
-                                       .get(grade.value, 99_999_999)
 
-            listing.condition_grade  = grade
-            listing.condition_score  = ai_result["score"]
-            listing.condition_report = ai_result
-            listing.price_max_limit  = cap
-            listing.status           = ListingStatus.condition_assessed
-            await db.commit()
+            async with AsyncSessionLocal() as bg_db:
+                bg_result  = await bg_db.execute(select(Listing).where(Listing.id == listing_id))
+                bg_listing = bg_result.scalar_one_or_none()
+                if not bg_listing:
+                    print(f"❌ AI assessment: listing {listing_id} غير موجود")
+                    return
+                cap = settings.PRICE_CAPS.get(category_value, {}) \
+                                          .get(listing_type_value, {}) \
+                                          .get(grade.value)
+                dynamic_caps = await get_dynamic_setting(bg_db, "price_caps", None)
+                if dynamic_caps:
+                    cap = dynamic_caps.get(category_value, {}) \
+                                       .get(listing_type_value, {}) \
+                                       .get(grade.value, cap)
+
+                bg_listing.condition_grade  = grade
+                bg_listing.condition_score  = ai_result["score"]
+                bg_listing.condition_report = ai_result
+                bg_listing.price_max_limit  = cap
+                bg_listing.status           = ListingStatus.condition_assessed
+                await bg_db.commit()
             print(f"✅ AI assessed {listing_id}: {grade.value} ({ai_result['score']})")
         except Exception as e:
             print(f"❌ AI assessment failed for {listing_id}: {e}")
@@ -106,7 +129,7 @@ async def upload_listing_images(
 @router.get("/listing/{listing_id}/condition-result")
 async def get_condition_result(listing_id: str, db: AsyncSession = Depends(get_db)):
     """استعلام عن نتيجة تقييم الحالة"""
-    result  = await db.execute(select(Listing).where(Listing.id == uuid.UUID(listing_id)))
+    result  = await db.execute(select(Listing).where(Listing.id == listing_id))
     listing = result.scalar_one_or_none()
     if not listing:
         raise HTTPException(404)
@@ -120,7 +143,8 @@ async def get_condition_result(listing_id: str, db: AsyncSession = Depends(get_d
         "status":          "done",
         "condition_grade": listing.condition_grade.value,
         "condition_score": listing.condition_score,
-        "price_max_limit": listing.price_max_limit,
+        "price_max_limit": None,
+        "price_tier":      listing.price_tier,
         "currency":        listing.currency,
         "report":          listing.condition_report,
     }

@@ -1,531 +1,728 @@
 """
-app/api/routes/admin.py — لوحة الإدارة الكاملة
-إحصائيات | مراجعة الإعلانات (قبول/رفض/حذف) | إدارة المستخدمين
-طلبات التحقق (KYC) | سجل التدقيق | إعدادات الموقع
+app/api/routes/admin.py — Hierarchical Admin Panel
+Roles: super_admin > admin > moderator > reviewer.
 """
-
+from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, or_, delete
-from datetime import datetime, timedelta
+from sqlalchemy import select, func, update, delete, desc
 from pydantic import BaseModel
-from typing import Optional, Any
+from typing import Optional, List
+from datetime import datetime
 import uuid
+import logging
 
 from app.core.database import get_db
-from app.core.security import require_admin_role
 from app.models.models import (
-    Listing, ListingImage, ListingStatus, ListingVerification,
-    User, UserRole, KYCStatus, AdminAuditLog, SiteSetting, Notification,
+    Listing, ListingStatus, ListingVerification, User, UserRole, Notification,
 )
+from app.api.routes.auth import get_current_user
 
+log = logging.getLogger("admin")
 router = APIRouter()
 
-Admin      = Depends(require_admin_role("reviewer"))
-Moderator  = Depends(require_admin_role("moderator"))
-SuperAdmin = Depends(require_admin_role("super_admin"))
+# ══════════════════════════════════════════════════════════════════════════
+# Hierarchy: map roles to allowed permission keys
+# ══════════════════════════════════════════════════════════════════════════
+ROLE_PERMISSIONS = {
+    "super_admin": {"*"},
+    "admin": {
+        "listings.review", "listings.approve", "listings.reject",
+        "users.view", "users.suspend", "kyc.review",
+        "reports.handle", "settings.view", "moderators.manage", "logs.view",
+    },
+    "moderator": {
+        "listings.review", "listings.approve", "listings.reject",
+        "kyc.review", "reports.handle", "users.view", "logs.view",
+    },
+    "reviewer": {"listings.review", "kyc.review", "users.view"},
+}
+ROLE_LEVEL = {"super_admin": 4, "admin": 3, "moderator": 2, "reviewer": 1}
 
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
-
-async def _log(db: AsyncSession, admin: User, action: str,
-               target_type: str = None, target_id: str = None, details: dict = None):
-    db.add(AdminAuditLog(
-        id=uuid.uuid4(),
-        admin_id=admin.id,
-        admin_name=admin.full_name,
-        action=action,
-        target_type=target_type,
-        target_id=str(target_id) if target_id else None,
-        details=details or {},
-    ))
-
-
-async def _notify(db: AsyncSession, user_id, type_: str, title: str, body: str = "", payload: dict = None):
-    db.add(Notification(
-        id=uuid.uuid4(),
-        user_id=user_id,
-        type=type_,
-        title=title,
-        body=body,
-        payload=payload or {},
-    ))
-
-
-def _uid(value: str) -> uuid.UUID:
+async def _get_admin_role(user: User, db: AsyncSession) -> Optional[str]:
+    """Look up the admin role for the given user. Falls back to legacy User.role='admin'."""
     try:
-        return uuid.UUID(str(value))
-    except ValueError:
-        raise HTTPException(400, "معرّف غير صالح")
+        # Try the modern `admins` table via raw SQL to avoid tight coupling.
+        row = (await db.execute(
+            select(func.coalesce(None)).where(False)  # noop placeholder
+        )).first()
+    except Exception:
+        pass
+    try:
+        from sqlalchemy import text
+        r = await db.execute(
+            text("SELECT role FROM admins WHERE user_id = :uid AND is_active = 1 LIMIT 1"),
+            {"uid": str(user.id)},
+        )
+        row = r.first()
+        if row and row[0]:
+            return row[0]
+    except Exception as e:
+        log.debug("admins table lookup failed (using legacy role): %s", e)
+
+    # Legacy fallback: User.role
+    legacy = getattr(user, "role", None)
+    if legacy:
+        val = legacy.value if hasattr(legacy, "value") else str(legacy)
+        if val == "admin":
+            return "admin"
+    return None
 
 
-def _ser_listing(l: Listing) -> dict:
-    return {
-        "id":              str(l.id),
-        "title":           l.title,
-        "description":     l.description,
-        "category":        l.category.value,
-        "listing_type":    l.listing_type.value,
-        "status":          l.status.value,
-        "seller_id":       str(l.seller_id),
-        "seller_name":     l.seller.full_name if l.seller else None,
-        "condition_grade": l.condition_grade.value if l.condition_grade else None,
-        "condition_score": l.condition_score,
-        "price":           l.price,
-        "currency":        l.currency,
-        "city":            l.city,
-        "view_count":      l.view_count,
-        "cover_image":     l.images[0].url if l.images else None,
-        "created_at":      l.created_at.isoformat() if l.created_at else None,
-        "published_at":    l.published_at.isoformat() if l.published_at else None,
-    }
+def require_admin_role(min_role: str = "reviewer"):
+    """Dependency factory that ensures caller has at least `min_role`."""
+    async def _dep(
+        user: User = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db),
+    ):
+        role = await _get_admin_role(user, db)
+        if not role:
+            raise HTTPException(403, "صلاحيات المشرف مطلوبة")
+        if ROLE_LEVEL.get(role, 0) < ROLE_LEVEL.get(min_role, 0):
+            raise HTTPException(403, f"يتطلب صلاحية {min_role}")
+        # attach for handlers
+        setattr(user, "admin_role", role)
+        return user
+    return _dep
 
 
-def _ser_user(u: User) -> dict:
-    return {
-        "id":          str(u.id),
-        "full_name":   u.full_name,
-        "email":       u.email,
-        "phone":       u.phone,
-        "role":        u.role.value if u.role else "both",
-        "kyc_status":  u.kyc_status.value if u.kyc_status else "pending",
-        "is_active":   bool(u.is_active),
-        "is_verified": bool(u.is_verified),
-        "avatar_url":  u.avatar_url,
-        "kyc_doc_url": u.kyc_doc_url,
-        "selfie_url":  u.selfie_url,
-        "created_at":  u.created_at.isoformat() if u.created_at else None,
-    }
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# Stats
-# ══════════════════════════════════════════════════════════════════════════════
-
-@router.get("/dashboard-stats")
-async def dashboard_stats(admin: User = Admin, db: AsyncSession = Depends(get_db)):
-    async def _count(model, *where):
-        return (await db.execute(select(func.count()).select_from(model).where(*where))).scalar() or 0
-
-    week_ago = datetime.utcnow() - timedelta(days=7)
-
-    return {
-        "total_users":     await _count(User),
-        "active_users":    await _count(User, User.is_active == True),  # noqa: E712
-        "new_users_week":  await _count(User, User.created_at >= week_ago),
-        "total_listings":  await _count(Listing),
-        "pending_review":  await _count(Listing, Listing.status == ListingStatus.pending_review),
-        "published":       await _count(Listing, Listing.status == ListingStatus.published),
-        "rejected":        await _count(Listing, Listing.status == ListingStatus.rejected),
-        "sold":            await _count(Listing, Listing.status == ListingStatus.sold),
-        "drafts":          await _count(Listing, Listing.status == ListingStatus.draft),
-        "kyc_pending":     await _count(User, User.kyc_status == KYCStatus.pending,
-                                        User.kyc_doc_url.isnot(None)),
-        "admin_role":      getattr(admin, "admin_role", "admin"),
-    }
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# Listings
-# ══════════════════════════════════════════════════════════════════════════════
-
-@router.get("/listings")
-async def list_listings(
-    status:    Optional[str] = None,
-    q:         Optional[str] = None,
-    page:      int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=100),
-    admin: User = Admin,
-    db: AsyncSession = Depends(get_db),
+async def _log_action(
+    db: AsyncSession, admin_user: User, action_type: str,
+    target_type: Optional[str] = None, target_id: Optional[str] = None,
+    details: Optional[dict] = None,
 ):
-    filters = []
-    if status and status != "all":
-        try:
-            filters.append(Listing.status == ListingStatus(status))
-        except ValueError:
-            raise HTTPException(400, "حالة غير معروفة")
-    if q:
-        filters.append(or_(Listing.title.ilike(f"%{q}%"), Listing.city.ilike(f"%{q}%")))
-
-    total = (await db.execute(
-        select(func.count()).select_from(Listing).where(*filters)
-    )).scalar() or 0
-
-    rows = (await db.execute(
-        select(Listing).where(*filters)
-        .order_by(Listing.created_at.desc())
-        .offset((page - 1) * page_size).limit(page_size)
-    )).scalars().all()
-
-    return {
-        "total": total, "page": page, "page_size": page_size,
-        "pages": (total + page_size - 1) // page_size,
-        "items": [_ser_listing(l) for l in rows],
-    }
-
-
-@router.get("/pending-listings")
-async def pending_listings(
-    page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=100),
-    admin: User = Admin,
-    db: AsyncSession = Depends(get_db),
-):
-    rows = (await db.execute(
-        select(Listing).where(Listing.status == ListingStatus.pending_review)
-        .order_by(Listing.updated_at.asc())
-        .offset((page - 1) * page_size).limit(page_size)
-    )).scalars().all()
-    return [_ser_listing(l) for l in rows]
+    try:
+        from sqlalchemy import text
+        # find admin.id
+        r = await db.execute(
+            text("SELECT id FROM admins WHERE user_id = :uid LIMIT 1"),
+            {"uid": str(admin_user.id)},
+        )
+        row = r.first()
+        admin_id = row[0] if row else None
+        if not admin_id:
+            return
+        import json
+        await db.execute(
+            text("""INSERT INTO admin_actions_log
+                  (id, admin_id, action_type, target_type, target_id, details, created_at)
+                  VALUES (:id, :admin_id, :at, :tt, :ti, :det, NOW())"""),
+            {
+                "id": str(uuid.uuid4()), "admin_id": admin_id, "at": action_type,
+                "tt": target_type, "ti": target_id,
+                "det": json.dumps(details or {}, ensure_ascii=False),
+            },
+        )
+        await db.commit()
+    except Exception as e:
+        log.debug("action log skipped: %s", e)
 
 
-@router.get("/listing/{listing_id}/full-review")
-async def full_review(listing_id: str, admin: User = Admin, db: AsyncSession = Depends(get_db)):
-    listing = (await db.execute(
-        select(Listing).where(Listing.id == _uid(listing_id))
-    )).scalar_one_or_none()
-    if not listing:
-        raise HTTPException(404, "الإعلان غير موجود")
-
-    verif = (await db.execute(
-        select(ListingVerification).where(ListingVerification.listing_id == _uid(listing_id))
-    )).scalar_one_or_none()
-
-    data = _ser_listing(listing)
-    data.update({
-        "condition_report": listing.condition_report,
-        "details":          listing.details,
-        "images":           [{"url": i.url, "type": i.image_type} for i in (listing.images or [])],
-    })
-
-    return {
-        "listing": data,
-        "verification": {
-            "id_doc_url":        verif.owner_id_doc_url,
-            "ownership_doc_url": verif.ownership_doc_url,
-            "match_score":       verif.match_score,
-            "match_status":      verif.match_status.value if verif.match_status else None,
-            "match_details":     verif.match_details,
-        } if verif else None,
-    }
-
-
+# ══════════════════════════════════════════════════════════════════════════
+# Pydantic
+# ══════════════════════════════════════════════════════════════════════════
 class ApproveIn(BaseModel):
     listing_id: str
+    admin_id: Optional[str] = None
 
 
 class RejectIn(BaseModel):
     listing_id: str
+    admin_id: Optional[str] = None
     reason: str
+
+
+class CreateAdminIn(BaseModel):
+    user_id: str
+    role: str
+    permissions: Optional[List[str]] = None
+
+
+class UpdateAdminIn(BaseModel):
+    role: Optional[str] = None
+    is_active: Optional[bool] = None
+    permissions: Optional[List[str]] = None
+
+
+class KycDecisionIn(BaseModel):
+    decision: str  # "approved" | "rejected"
+    note: Optional[str] = None
+
+
+class ReportResolveIn(BaseModel):
+    note: str
+
+
+class SettingIn(BaseModel):
+    value: object
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# Dashboard
+# ══════════════════════════════════════════════════════════════════════════
+@router.get("/dashboard-stats")
+async def dashboard_stats(
+    admin: User = Depends(require_admin_role("reviewer")),
+    db: AsyncSession = Depends(get_db),
+):
+    async def _count(status: ListingStatus) -> int:
+        r = await db.execute(select(func.count()).select_from(Listing).where(Listing.status == status))
+        return r.scalar() or 0
+
+    total_users = (await db.execute(select(func.count()).select_from(User))).scalar() or 0
+    try:
+        from sqlalchemy import text
+        total_admins = (await db.execute(text("SELECT COUNT(*) FROM admins WHERE is_active = 1"))).scalar() or 0
+    except Exception:
+        total_admins = 0
+
+    return {
+        "total_users": total_users,
+        "total_admins": total_admins,
+        "pending_review": await _count(ListingStatus.pending_review),
+        "published": await _count(ListingStatus.published),
+        "rejected": await _count(ListingStatus.rejected),
+        "sold": await _count(ListingStatus.sold),
+        "admin_role": getattr(admin, "admin_role", None),
+    }
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# Listings review
+# ══════════════════════════════════════════════════════════════════════════
+@router.get("/pending-listings")
+async def pending_listings(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    admin: User = Depends(require_admin_role("reviewer")),
+    db: AsyncSession = Depends(get_db),
+):
+    rows = (await db.execute(
+        select(Listing)
+        .where(Listing.status == ListingStatus.pending_review)
+        .order_by(Listing.updated_at.asc())
+        .offset((page - 1) * page_size).limit(page_size)
+    )).scalars().all()
+    return [{
+        "id": str(l.id), "title": l.title,
+        "category": l.category.value if l.category else None,
+        "listing_type": l.listing_type.value if l.listing_type else None,
+        "price": l.price, "city": l.city,
+        "condition_grade": l.condition_grade.value if l.condition_grade else None,
+        "created_at": l.created_at.isoformat() if l.created_at else None,
+    } for l in rows]
+
+
+@router.get("/listing/{listing_id}/full-review")
+async def full_review(
+    listing_id: str,
+    admin: User = Depends(require_admin_role("reviewer")),
+    db: AsyncSession = Depends(get_db),
+):
+    listing = (await db.execute(select(Listing).where(Listing.id == listing_id))).scalar_one_or_none()
+    if not listing:
+        raise HTTPException(404)
+    verif = (await db.execute(select(ListingVerification).where(ListingVerification.listing_id == listing_id))).scalar_one_or_none()
+    return {
+        "listing": {
+            "id": str(listing.id), "title": listing.title,
+            "category": listing.category.value if listing.category else None,
+            "listing_type": listing.listing_type.value if listing.listing_type else None,
+            "status": listing.status.value if listing.status else None,
+            "condition_grade": listing.condition_grade.value if listing.condition_grade else None,
+            "condition_score": listing.condition_score,
+            "condition_report": listing.condition_report,
+            "price": listing.price, "details": listing.details,
+            "images": [{"url": i.url, "type": i.image_type} for i in (listing.images or [])],
+        },
+        "verification": {
+            "id_doc_url": verif.owner_id_doc_url if verif else None,
+            "ownership_doc_url": verif.ownership_doc_url if verif else None,
+            "match_score": verif.match_score if verif else None,
+            "match_status": verif.match_status.value if verif and verif.match_status else None,
+        } if verif else None,
+    }
 
 
 @router.post("/approve-listing")
-async def approve_listing(body: ApproveIn, admin: User = Moderator, db: AsyncSession = Depends(get_db)):
-    listing = (await db.execute(
-        select(Listing).where(Listing.id == _uid(body.listing_id))
-    )).scalar_one_or_none()
+async def approve_listing(
+    body: ApproveIn,
+    admin: User = Depends(require_admin_role("moderator")),
+    db: AsyncSession = Depends(get_db),
+):
+    listing = (await db.execute(select(Listing).where(Listing.id == body.listing_id))).scalar_one_or_none()
     if not listing:
-        raise HTTPException(404, "الإعلان غير موجود")
-
+        raise HTTPException(404)
     listing.status = ListingStatus.published
     listing.published_at = datetime.utcnow()
-
-    await _notify(db, listing.seller_id, "listing_approved",
-                  "تم نشر إعلانك ✅", f"إعلان «{listing.title}» أصبح منشوراً في السوق.",
-                  {"listing_id": str(listing.id)})
-    await _log(db, admin, "approve_listing", "listing", listing.id, {"title": listing.title})
+    db.add(Notification(
+        id=str(uuid.uuid4()), user_id=str(listing.seller_id),
+        type="listing_approved", title="تم قبول إعلانك",
+        body=f"تم نشر إعلانك: {listing.title}", is_read=False,
+    ))
     await db.commit()
-    return {"status": "published", "listing_id": str(listing.id)}
+    await _log_action(db, admin, "listing.approve", "listing", body.listing_id)
+    return {"status": "published", "listing_id": body.listing_id}
 
 
 @router.post("/reject-listing")
-async def reject_listing(body: RejectIn, admin: User = Moderator, db: AsyncSession = Depends(get_db)):
-    listing = (await db.execute(
-        select(Listing).where(Listing.id == _uid(body.listing_id))
-    )).scalar_one_or_none()
+async def reject_listing(
+    body: RejectIn,
+    admin: User = Depends(require_admin_role("moderator")),
+    db: AsyncSession = Depends(get_db),
+):
+    listing = (await db.execute(select(Listing).where(Listing.id == body.listing_id))).scalar_one_or_none()
     if not listing:
-        raise HTTPException(404, "الإعلان غير موجود")
-
+        raise HTTPException(404)
     listing.status = ListingStatus.rejected
-
-    verif = (await db.execute(
-        select(ListingVerification).where(ListingVerification.listing_id == listing.id)
-    )).scalar_one_or_none()
-    if verif:
-        verif.rejection_reason = body.reason
-        verif.reviewed_by      = admin.id
-        verif.reviewed_at      = datetime.utcnow()
-
-    await _notify(db, listing.seller_id, "listing_rejected",
-                  "تم رفض إعلانك", body.reason, {"listing_id": str(listing.id)})
-    await _log(db, admin, "reject_listing", "listing", listing.id, {"reason": body.reason})
+    listing.rejected_reason = body.reason
+    db.add(Notification(
+        id=str(uuid.uuid4()), user_id=str(listing.seller_id),
+        type="listing_rejected", title="تم رفض إعلانك",
+        body=body.reason, is_read=False,
+    ))
     await db.commit()
+    await _log_action(db, admin, "listing.reject", "listing", body.listing_id, {"reason": body.reason})
     return {"status": "rejected", "reason": body.reason}
 
 
-@router.delete("/listing/{listing_id}")
-async def delete_listing(listing_id: str, admin: User = Depends(require_admin_role("admin")),
-                         db: AsyncSession = Depends(get_db)):
-    lid = _uid(listing_id)
-    listing = (await db.execute(select(Listing).where(Listing.id == lid))).scalar_one_or_none()
-    if not listing:
-        raise HTTPException(404, "الإعلان غير موجود")
-
-    title, seller_id = listing.title, listing.seller_id
-    await db.execute(delete(ListingImage).where(ListingImage.listing_id == lid))
-    await db.execute(delete(ListingVerification).where(ListingVerification.listing_id == lid))
-    await db.execute(delete(Listing).where(Listing.id == lid))
-
-    await _notify(db, seller_id, "listing_deleted", "تم حذف إعلانك", f"«{title}» حُذف من المنصة.")
-    await _log(db, admin, "delete_listing", "listing", lid, {"title": title})
-    await db.commit()
-    return {"status": "deleted"}
-
-
-# ══════════════════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════════════
 # Users
-# ══════════════════════════════════════════════════════════════════════════════
-
+# ══════════════════════════════════════════════════════════════════════════
 @router.get("/users")
 async def list_users(
-    q:    Optional[str] = None,
-    role: Optional[str] = None,
+    q: Optional[str] = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
-    admin: User = Admin,
+    admin: User = Depends(require_admin_role("reviewer")),
     db: AsyncSession = Depends(get_db),
 ):
-    filters = []
+    stmt = select(User).order_by(desc(User.created_at))
     if q:
-        filters.append(or_(
-            User.full_name.ilike(f"%{q}%"),
-            User.email.ilike(f"%{q}%"),
-            User.phone.ilike(f"%{q}%"),
-        ))
-    if role and role != "all":
-        try:
-            filters.append(User.role == UserRole(role))
-        except ValueError:
-            raise HTTPException(400, "صلاحية غير معروفة")
-
-    total = (await db.execute(select(func.count()).select_from(User).where(*filters))).scalar() or 0
-    rows = (await db.execute(
-        select(User).where(*filters).order_by(User.created_at.desc())
-        .offset((page - 1) * page_size).limit(page_size)
-    )).scalars().all()
-
-    return {
-        "total": total, "page": page, "page_size": page_size,
-        "pages": (total + page_size - 1) // page_size,
-        "items": [_ser_user(u) for u in rows],
-    }
+        like = f"%{q}%"
+        stmt = stmt.where((User.full_name.ilike(like)) | (User.email.ilike(like)))
+    rows = (await db.execute(stmt.offset((page - 1) * page_size).limit(page_size))).scalars().all()
+    return [{
+        "id": str(u.id), "full_name": u.full_name, "email": u.email, "phone": u.phone,
+        "kyc_status": u.kyc_status.value if u.kyc_status else "unverified",
+        "is_active": u.is_active,
+        "created_at": u.created_at.isoformat() if u.created_at else None,
+    } for u in rows]
 
 
-class UpdateUserIn(BaseModel):
-    role:        Optional[str] = None
-    is_active:   Optional[bool] = None
-    is_verified: Optional[bool] = None
-    full_name:   Optional[str] = None
-
-
-@router.patch("/users/{user_id}")
-async def update_user(user_id: str, body: UpdateUserIn,
-                      admin: User = Depends(require_admin_role("admin")),
-                      db: AsyncSession = Depends(get_db)):
-    user = (await db.execute(select(User).where(User.id == _uid(user_id)))).scalar_one_or_none()
-    if not user:
-        raise HTTPException(404, "المستخدم غير موجود")
-
-    if body.role is not None:
-        try:
-            new_role = UserRole(body.role)
-        except ValueError:
-            raise HTTPException(400, "صلاحية غير معروفة")
-        if new_role in (UserRole.admin, UserRole.super_admin) and \
-                getattr(admin, "admin_role", "") != "super_admin":
-            raise HTTPException(403, "منح صلاحية الإدارة يتطلب مديراً أعلى")
-        user.role = new_role
-    if body.is_active is not None:
-        user.is_active = body.is_active
-    if body.is_verified is not None:
-        user.is_verified = body.is_verified
-    if body.full_name:
-        user.full_name = body.full_name
-
-    await _log(db, admin, "update_user", "user", user.id, body.model_dump(exclude_none=True))
+@router.post("/users/{user_id}/suspend")
+async def suspend_user(
+    user_id: str,
+    admin: User = Depends(require_admin_role("admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    u = await db.get(User, user_id)
+    if not u:
+        raise HTTPException(404)
+    u.is_active = False
     await db.commit()
-    return _ser_user(user)
+    await _log_action(db, admin, "user.suspend", "user", user_id)
+    return {"ok": True}
 
 
-class BanIn(BaseModel):
-    banned: bool = True
-    reason: Optional[str] = None
-
-
-@router.post("/users/{user_id}/ban")
-async def ban_user(user_id: str, body: BanIn,
-                   admin: User = Depends(require_admin_role("admin")),
-                   db: AsyncSession = Depends(get_db)):
-    user = (await db.execute(select(User).where(User.id == _uid(user_id)))).scalar_one_or_none()
-    if not user:
-        raise HTTPException(404, "المستخدم غير موجود")
-    if user.id == admin.id:
-        raise HTTPException(400, "لا يمكنك حظر نفسك")
-
-    user.is_active = not body.banned
-    await _notify(db, user.id, "account",
-                  "تم حظر حسابك" if body.banned else "تم رفع الحظر عن حسابك",
-                  body.reason or "")
-    await _log(db, admin, "ban_user" if body.banned else "unban_user", "user", user.id,
-               {"reason": body.reason})
+@router.post("/users/{user_id}/activate")
+async def activate_user(
+    user_id: str,
+    admin: User = Depends(require_admin_role("admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    u = await db.get(User, user_id)
+    if not u:
+        raise HTTPException(404)
+    u.is_active = True
     await db.commit()
-    return {"id": str(user.id), "is_active": user.is_active}
+    await _log_action(db, admin, "user.activate", "user", user_id)
+    return {"ok": True}
 
 
-@router.delete("/users/{user_id}")
-async def delete_user(user_id: str, admin: User = SuperAdmin, db: AsyncSession = Depends(get_db)):
-    uid = _uid(user_id)
-    if uid == admin.id:
-        raise HTTPException(400, "لا يمكنك حذف حسابك")
-    user = (await db.execute(select(User).where(User.id == uid))).scalar_one_or_none()
-    if not user:
-        raise HTTPException(404, "المستخدم غير موجود")
+# ══════════════════════════════════════════════════════════════════════════
+# KYC review
+# ══════════════════════════════════════════════════════════════════════════
+@router.get("/kyc")
+async def list_kyc(
+    status: str = "pending",
+    admin: User = Depends(require_admin_role("reviewer")),
+    db: AsyncSession = Depends(get_db),
+):
+    from sqlalchemy import text
+    try:
+        rows = (await db.execute(
+            text("""SELECT k.id, k.user_id, k.id_front_url, k.selfie_url, k.status,
+                           u.full_name, u.email
+                    FROM kyc_submissions k
+                    LEFT JOIN users u ON u.id = k.user_id
+                    WHERE k.status = :s
+                    ORDER BY k.created_at DESC LIMIT 100"""),
+            {"s": status},
+        )).mappings().all()
+        return [{
+            "id": r["id"], "user_id": r["user_id"],
+            "id_front_url": r["id_front_url"], "selfie_url": r["selfie_url"],
+            "status": r["status"],
+            "user": {"full_name": r["full_name"], "email": r["email"]},
+        } for r in rows]
+    except Exception:
+        return []
 
-    email = user.email
-    await db.execute(delete(Notification).where(Notification.user_id == uid))
-    await db.execute(delete(User).where(User.id == uid))
-    await _log(db, admin, "delete_user", "user", uid, {"email": email})
+
+@router.post("/kyc/{kyc_id}/review")
+async def review_kyc(
+    kyc_id: str, body: KycDecisionIn,
+    admin: User = Depends(require_admin_role("reviewer")),
+    db: AsyncSession = Depends(get_db),
+):
+    from sqlalchemy import text
+    if body.decision not in ("approved", "rejected"):
+        raise HTTPException(400, "قرار غير صالح")
+    r = await db.execute(text("SELECT user_id FROM kyc_submissions WHERE id = :id"), {"id": kyc_id})
+    row = r.first()
+    if not row:
+        raise HTTPException(404)
+    user_id = row[0]
+    await db.execute(text("""UPDATE kyc_submissions
+        SET status = :s, reviewed_by = :rb, reviewed_at = NOW(), rejection_reason = :rr
+        WHERE id = :id"""),
+        {"s": body.decision, "rb": str(admin.id), "rr": body.note, "id": kyc_id})
+    new_kyc = "verified" if body.decision == "approved" else "rejected"
+    await db.execute(text("UPDATE users SET kyc_status = :k WHERE id = :id"), {"k": new_kyc, "id": user_id})
+    db.add(Notification(
+        id=str(uuid.uuid4()), user_id=user_id,
+        type="kyc_" + body.decision,
+        title="تم قبول التحقق" if body.decision == "approved" else "تم رفض التحقق",
+        body=body.note or "", is_read=False,
+    ))
     await db.commit()
-    return {"status": "deleted"}
+    await _log_action(db, admin, "kyc." + body.decision, "kyc", kyc_id)
+    return {"ok": True, "kyc_status": new_kyc}
 
 
+# ══════════════════════════════════════════════════════════════════════════
+# Admin hierarchy management (super_admin only)
+# ══════════════════════════════════════════════════════════════════════════
 @router.get("/admins")
-async def list_admins(admin: User = Admin, db: AsyncSession = Depends(get_db)):
+async def list_admins(
+    admin: User = Depends(require_admin_role("admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    from sqlalchemy import text
     rows = (await db.execute(
-        select(User).where(User.role.in_([UserRole.admin, UserRole.super_admin]))
-        .order_by(User.created_at.asc())
-    )).scalars().all()
-    return [_ser_user(u) for u in rows]
+        text("""SELECT a.id, a.user_id, a.role, a.is_active, a.created_at,
+                       u.full_name, u.email
+                FROM admins a LEFT JOIN users u ON u.id = a.user_id
+                ORDER BY a.created_at DESC""")
+    )).mappings().all()
+    return [{
+        "id": r["id"], "user_id": r["user_id"], "role": r["role"],
+        "is_active": bool(r["is_active"]),
+        "created_at": r["created_at"].isoformat() if r["created_at"] else None,
+        "user": {"full_name": r["full_name"], "email": r["email"]},
+    } for r in rows]
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# KYC requests
-# ══════════════════════════════════════════════════════════════════════════════
-
-@router.get("/kyc-requests")
-async def kyc_requests(status: str = "pending", admin: User = Admin,
-                       db: AsyncSession = Depends(get_db)):
-    filters = [User.kyc_doc_url.isnot(None)]
-    if status and status != "all":
-        try:
-            filters.append(User.kyc_status == KYCStatus(status))
-        except ValueError:
-            raise HTTPException(400, "حالة غير معروفة")
-
-    rows = (await db.execute(
-        select(User).where(*filters).order_by(User.updated_at.desc()).limit(100)
-    )).scalars().all()
-    return [_ser_user(u) for u in rows]
-
-
-@router.post("/kyc/{user_id}/approve")
-async def approve_kyc(user_id: str, admin: User = Moderator, db: AsyncSession = Depends(get_db)):
-    user = (await db.execute(select(User).where(User.id == _uid(user_id)))).scalar_one_or_none()
-    if not user:
+@router.post("/admins")
+async def create_admin(
+    body: CreateAdminIn,
+    admin: User = Depends(require_admin_role("super_admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    if body.role not in ROLE_LEVEL:
+        raise HTTPException(400, "دور غير صالح")
+    from sqlalchemy import text
+    u = await db.get(User, body.user_id)
+    if not u:
         raise HTTPException(404, "المستخدم غير موجود")
-
-    user.kyc_status  = KYCStatus.approved
-    user.is_verified = True
-    await _notify(db, user.id, "kyc", "تم توثيق حسابك ✅", "يمكنك الآن نشر الإعلانات.")
-    await _log(db, admin, "approve_kyc", "user", user.id)
+    import json
+    new_id = str(uuid.uuid4())
+    await db.execute(text("""INSERT INTO admins (id, user_id, role, permissions, created_by, is_active, created_at)
+        VALUES (:id, :uid, :role, :perms, :cb, 1, NOW())
+        ON DUPLICATE KEY UPDATE role = :role, is_active = 1"""),
+        {"id": new_id, "uid": body.user_id, "role": body.role,
+         "perms": json.dumps(body.permissions or []), "cb": str(admin.id)})
     await db.commit()
-    return _ser_user(user)
+    await _log_action(db, admin, "admin.create", "admin", body.user_id, {"role": body.role})
+    return {"ok": True, "id": new_id}
 
 
-class KycRejectIn(BaseModel):
-    reason: str
-
-
-@router.post("/kyc/{user_id}/reject")
-async def reject_kyc(user_id: str, body: KycRejectIn, admin: User = Moderator,
-                     db: AsyncSession = Depends(get_db)):
-    user = (await db.execute(select(User).where(User.id == _uid(user_id)))).scalar_one_or_none()
-    if not user:
-        raise HTTPException(404, "المستخدم غير موجود")
-
-    user.kyc_status  = KYCStatus.rejected
-    user.is_verified = False
-    await _notify(db, user.id, "kyc", "تم رفض طلب التوثيق", body.reason)
-    await _log(db, admin, "reject_kyc", "user", user.id, {"reason": body.reason})
+@router.patch("/admins/{admin_id}")
+async def update_admin(
+    admin_id: str, body: UpdateAdminIn,
+    admin: User = Depends(require_admin_role("super_admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    from sqlalchemy import text
+    fields, params = [], {"id": admin_id}
+    if body.role is not None:
+        if body.role not in ROLE_LEVEL: raise HTTPException(400)
+        fields.append("role = :role"); params["role"] = body.role
+    if body.is_active is not None:
+        fields.append("is_active = :ia"); params["ia"] = 1 if body.is_active else 0
+    if body.permissions is not None:
+        import json
+        fields.append("permissions = :p"); params["p"] = json.dumps(body.permissions)
+    if not fields:
+        return {"ok": True}
+    await db.execute(text(f"UPDATE admins SET {', '.join(fields)} WHERE id = :id"), params)
     await db.commit()
-    return _ser_user(user)
+    await _log_action(db, admin, "admin.update", "admin", admin_id, body.dict(exclude_none=True))
+    return {"ok": True}
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# Audit log
-# ══════════════════════════════════════════════════════════════════════════════
+@router.delete("/admins/{admin_id}")
+async def delete_admin(
+    admin_id: str,
+    admin: User = Depends(require_admin_role("super_admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    from sqlalchemy import text
+    await db.execute(text("DELETE FROM admins WHERE id = :id AND role != 'super_admin'"), {"id": admin_id})
+    await db.commit()
+    await _log_action(db, admin, "admin.delete", "admin", admin_id)
+    return {"ok": True}
 
-@router.get("/audit-logs")
-async def audit_logs(page: int = Query(1, ge=1), page_size: int = Query(30, ge=1, le=100),
-                     admin: User = Admin, db: AsyncSession = Depends(get_db)):
-    total = (await db.execute(select(func.count()).select_from(AdminAuditLog))).scalar() or 0
+
+# ══════════════════════════════════════════════════════════════════════════
+# Actions log
+# ══════════════════════════════════════════════════════════════════════════
+@router.get("/actions-log")
+async def actions_log(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
+    admin: User = Depends(require_admin_role("moderator")),
+    db: AsyncSession = Depends(get_db),
+):
+    from sqlalchemy import text
     rows = (await db.execute(
-        select(AdminAuditLog).order_by(AdminAuditLog.created_at.desc())
-        .offset((page - 1) * page_size).limit(page_size)
-    )).scalars().all()
+        text("""SELECT l.id, l.admin_id, l.action_type, l.target_type, l.target_id,
+                       l.details, l.created_at, u.full_name
+                FROM admin_actions_log l
+                LEFT JOIN admins a ON a.id = l.admin_id
+                LEFT JOIN users u  ON u.id = a.user_id
+                ORDER BY l.created_at DESC
+                LIMIT :lim OFFSET :off"""),
+        {"lim": page_size, "off": (page - 1) * page_size},
+    )).mappings().all()
+    return [{
+        "id": r["id"], "admin_id": r["admin_id"], "action_type": r["action_type"],
+        "target_type": r["target_type"], "target_id": r["target_id"],
+        "details": r["details"], "created_at": r["created_at"].isoformat() if r["created_at"] else None,
+        "admin": {"full_name": r["full_name"]},
+    } for r in rows]
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# Reports
+# ══════════════════════════════════════════════════════════════════════════
+@router.get("/reports")
+async def list_reports(
+    status: str = "open",
+    admin: User = Depends(require_admin_role("moderator")),
+    db: AsyncSession = Depends(get_db),
+):
+    from sqlalchemy import text
+    try:
+        rows = (await db.execute(
+            text("SELECT * FROM reports WHERE status = :s ORDER BY created_at DESC LIMIT 200"),
+            {"s": status},
+        )).mappings().all()
+        return [dict(r) for r in rows]
+    except Exception:
+        return []
+
+
+@router.post("/reports/{report_id}/resolve")
+async def resolve_report(
+    report_id: str, body: ReportResolveIn,
+    admin: User = Depends(require_admin_role("moderator")),
+    db: AsyncSession = Depends(get_db),
+):
+    from sqlalchemy import text
+    await db.execute(text("""UPDATE reports SET status='resolved', resolved_by=:rb,
+                     resolved_at=NOW(), resolution_note=:n WHERE id=:id"""),
+        {"rb": str(admin.id), "n": body.note, "id": report_id})
+    await db.commit()
+    await _log_action(db, admin, "report.resolve", "report", report_id)
+    return {"ok": True}
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# Settings
+# ══════════════════════════════════════════════════════════════════════════
+@router.get("/settings")
+async def get_settings_ep(
+    admin: User = Depends(require_admin_role("admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    from sqlalchemy import text
+    try:
+        rows = (await db.execute(text("SELECT setting_key, setting_value FROM system_settings"))).mappings().all()
+        return {r["setting_key"]: r["setting_value"] for r in rows}
+    except Exception:
+        return {}
+
+
+@router.put("/settings/{key}")
+async def update_setting(
+    key: str, body: SettingIn,
+    admin: User = Depends(require_admin_role("super_admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    import json
+    from sqlalchemy import text
+    from app.core.dynamic_settings import invalidate_cache
+    await db.execute(text("""INSERT INTO system_settings (setting_key, setting_value, updated_by, updated_at)
+        VALUES (:k, :v, :ub, NOW())
+        ON DUPLICATE KEY UPDATE setting_value = :v, updated_by = :ub, updated_at = NOW()"""),
+        {"k": key, "v": json.dumps(body.value, ensure_ascii=False), "ub": str(admin.id)})
+    await db.commit()
+    invalidate_cache(key)
+    await _log_action(db, admin, "setting.update", "setting", key)
+    return {"ok": True}
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# الفئات (Categories) — تعديل الاسم/الأيقونة/التفعيل/الترتيب فقط.
+# ملاحظة: إضافة فئة جديدة كلياً (غير house/car) تتطلب تعديل بنيوي أعمق
+# (عمود listings.category نوعه ENUM ثابت، ونموذج الذكاء الاصطناعي مدرّب
+# على هاتين الفئتين تحديداً) — لذلك هذا القسم لإدارة عرض الفئات الموجودة، لا
+# لإضافة فئات جديدة.
+# ══════════════════════════════════════════════════════════════════════════
+class CategoryUpdateIn(BaseModel):
+    name_ar:    Optional[str]  = None
+    name_en:    Optional[str]  = None
+    icon:       Optional[str]  = None
+    is_active:  Optional[bool] = None
+    sort_order: Optional[int]  = None
+
+
+@router.get("/categories")
+async def list_categories(
+    admin: User = Depends(require_admin_role("reviewer")),
+    db: AsyncSession = Depends(get_db),
+):
+    from sqlalchemy import text
+    try:
+        rows = (await db.execute(text(
+            "SELECT id, slug, name_ar, name_en, icon, is_active, sort_order "
+            "FROM categories ORDER BY sort_order"
+        ))).mappings().all()
+        return [dict(r) for r in rows]
+    except Exception:
+        return []
+
+
+@router.put("/categories/{category_id}")
+async def update_category(
+    category_id: str, body: CategoryUpdateIn,
+    admin: User = Depends(require_admin_role("admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    from sqlalchemy import text
+    updates = body.model_dump(exclude_unset=True)
+    if not updates:
+        return {"ok": True}
+    set_clause = ", ".join(f"{k} = :{k}" for k in updates)
+    await db.execute(
+        text(f"UPDATE categories SET {set_clause} WHERE id = :id"),
+        {**updates, "id": category_id},
+    )
+    await db.commit()
+    await _log_action(db, admin, "category.update", "category", category_id, updates)
+    return {"ok": True}
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# التحليلات (Analytics)
+# ══════════════════════════════════════════════════════════════════════════
+@router.get("/analytics")
+async def analytics(
+    days: int = Query(30, ge=7, le=90),
+    admin: User = Depends(require_admin_role("admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    from sqlalchemy import text
+
+    def _series(rows):
+        return [
+            {"date": r[0].isoformat() if hasattr(r[0], "isoformat") else str(r[0]), "count": r[1]}
+            for r in rows
+        ]
+
+    signups = (await db.execute(text(
+        """SELECT DATE(created_at) d, COUNT(*) c FROM users
+           WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL :days DAY)
+           GROUP BY DATE(created_at) ORDER BY d"""),
+        {"days": days},
+    )).all()
+
+    new_listings = (await db.execute(text(
+        """SELECT DATE(created_at) d, COUNT(*) c FROM listings
+           WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL :days DAY)
+           GROUP BY DATE(created_at) ORDER BY d"""),
+        {"days": days},
+    )).all()
+
+    published = (await db.execute(text(
+        """SELECT DATE(published_at) d, COUNT(*) c FROM listings
+           WHERE published_at IS NOT NULL
+             AND published_at >= DATE_SUB(CURDATE(), INTERVAL :days DAY)
+           GROUP BY DATE(published_at) ORDER BY d"""),
+        {"days": days},
+    )).all()
+
+    by_category = (await db.execute(text(
+        "SELECT category, COUNT(*) c FROM listings GROUP BY category"
+    ))).all()
+
+    by_city = (await db.execute(text(
+        """SELECT city, COUNT(*) c FROM listings WHERE city IS NOT NULL
+           GROUP BY city ORDER BY c DESC LIMIT 10"""
+    ))).all()
+
     return {
-        "total": total, "page": page,
-        "pages": (total + page_size - 1) // page_size,
-        "items": [{
-            "id":          str(r.id),
-            "admin_name":  r.admin_name,
-            "action":      r.action,
-            "target_type": r.target_type,
-            "target_id":   r.target_id,
-            "details":     r.details,
-            "created_at":  r.created_at.isoformat() if r.created_at else None,
-        } for r in rows],
+        "signups":     _series(signups),
+        "new_listings": _series(new_listings),
+        "published":   _series(published),
+        "by_category": [{"category": r[0], "count": r[1]} for r in by_category],
+        "by_city":     [{"city": r[0], "count": r[1]} for r in by_city],
     }
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# Site settings
-# ══════════════════════════════════════════════════════════════════════════════
-
-DEFAULT_SETTINGS: dict[str, Any] = {
-    "site_name":          "معاملاتي",
-    "maintenance_mode":   False,
-    "allow_registration": True,
-    "require_kyc":        True,
-    "min_images":         3,
-    "support_email":      "support@moamalati.sd",
-    "support_phone":      "",
-}
+# ══════════════════════════════════════════════════════════════════════════
+# إشعارات جماعية (Broadcast)
+# ══════════════════════════════════════════════════════════════════════════
+class BroadcastIn(BaseModel):
+    title:    str
+    body:     str
+    audience: str = "all"   # all | buyer | seller | both
 
 
-@router.get("/settings")
-async def get_settings(admin: User = Admin, db: AsyncSession = Depends(get_db)):
-    rows = (await db.execute(select(SiteSetting))).scalars().all()
-    data = dict(DEFAULT_SETTINGS)
-    for r in rows:
-        data[r.key] = r.value
-    return data
+@router.post("/broadcast")
+async def broadcast_notification(
+    body: BroadcastIn,
+    admin: User = Depends(require_admin_role("admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    query = select(User.id)
+    if body.audience != "all":
+        try:
+            query = query.where(User.role == UserRole(body.audience))
+        except ValueError:
+            raise HTTPException(422, "audience غير صالح")
 
-
-class SettingsIn(BaseModel):
-    settings: dict
-
-
-@router.put("/settings")
-async def update_settings(body: SettingsIn, admin: User = Depends(require_admin_role("admin")),
-                          db: AsyncSession = Depends(get_db)):
-    for key, value in body.settings.items():
-        row = (await db.execute(select(SiteSetting).where(SiteSetting.key == key))).scalar_one_or_none()
-        if row:
-            row.value = value
-            row.updated_at = datetime.utcnow()
-        else:
-            db.add(SiteSetting(key=key, value=value))
-    await _log(db, admin, "update_settings", "settings", None, body.settings)
+    user_ids = (await db.execute(query)).scalars().all()
+    for uid in user_ids:
+        db.add(Notification(user_id=uid, type="broadcast", title=body.title, body=body.body))
     await db.commit()
-    return await get_settings(admin, db)
+
+    await _log_action(
+        db, admin, "broadcast.send", details={
+            "audience": body.audience, "count": len(user_ids), "title": body.title,
+        },
+    )
+    return {"ok": True, "sent_to": len(user_ids)}

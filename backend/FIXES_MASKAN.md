@@ -327,7 +327,7 @@ DEBUG=True
 APP_NAME=معاملاتي
 APP_VERSION=2.0.0
 
-DATABASE_URL=mysql+aiomysql://root:@localhost:3306/maskandaba
+DATABASE_URL=mysql+aiomysql://root:@localhost:3306/maskan_db
 REDIS_URL=redis://localhost:6379
 
 JWT_SECRET_KEY=your-super-secret-key-change-in-production-12345
@@ -360,7 +360,7 @@ cd backend
 pip install -r requirements.txt --break-system-packages
 
 # 2. إنشاء قاعدة البيانات
-mysql -u root -e "CREATE DATABASE maskandaba CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+mysql -u root -e "CREATE DATABASE maskan_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 
 # 3. تشغيل الـ backend
 python -m uvicorn main:app --reload --host 0.0.0.0 --port 8000

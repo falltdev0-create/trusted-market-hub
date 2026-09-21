@@ -1,0 +1,85 @@
+import { Link } from "@tanstack/react-router";
+import { BedDouble, Bath, Ruler, MapPin, ShieldCheck, Star } from "lucide-react";
+import { PriceTierBadge, computeTier, type PriceTier } from "@/components/PriceTierBadge";
+import { useLanguage } from "@/i18n/LanguageContext";
+import { getCityName } from "@/i18n/cities";
+
+export interface Listing {
+  id: string;
+  title: string;
+  city: string;
+  area: string;
+  price: number;
+  kind: "sale" | "rent";
+  category: "property";
+  grade: "excellent" | "good" | "poor";
+  image: string;
+  bedrooms?: number;
+  bathrooms?: number;
+  size?: number;
+  year?: number;
+  km?: number;
+  price_tier?: PriceTier;
+}
+
+export function ListingCard({ l }: { l: Listing }) {
+  const { t } = useLanguage();
+  const gradeMap = {
+    excellent: { label: t("common.firstGrade"), color: "bg-success/10 text-success" },
+    good: { label: t("common.secondGrade"), color: "bg-warning/10 text-warning" },
+    poor: { label: t("common.thirdGrade"), color: "bg-destructive/10 text-destructive" },
+  };
+  const g = gradeMap[l.grade];
+  const tier: PriceTier = l.price_tier ?? computeTier(l.price, l.category);
+  return (
+    <Link
+      to="/listing/$id"
+      params={{ id: l.id }}
+      className="group block overflow-hidden rounded-xl border bg-card transition-all hover:-translate-y-1 hover:shadow-[var(--shadow-elevated)]"
+    >
+      <div className="relative aspect-video overflow-hidden bg-secondary">
+        <img
+          src={l.image}
+          alt={l.title}
+          loading="lazy"
+          className="h-full w-full object-cover transition-transform group-hover:scale-105"
+        />
+        <div className="absolute right-3 top-3 rounded-md bg-primary px-2.5 py-1 text-xs font-bold text-primary-foreground">
+          {l.kind === "sale" ? t("common.sale") : t("common.rent")}
+        </div>
+        <div className={`absolute left-3 top-3 flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-bold ${g.color}`}>
+          <Star className="h-3 w-3 fill-current" /> {g.label}
+        </div>
+        <div className="absolute bottom-3 left-3">
+          <PriceTierBadge tier={tier} size="sm" />
+        </div>
+      </div>
+      <div className="p-4">
+        <h3 className="line-clamp-1 font-bold text-foreground">{l.title}</h3>
+        <p className="mt-1 flex items-center gap-1 text-sm text-muted-foreground">
+          <MapPin className="h-3.5 w-3.5" /> {getCityName(l.city, t)}، {l.area}
+        </p>
+        {l.category === "property" ? (
+          <div className="mt-3 flex flex-wrap gap-3 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1"><BedDouble className="h-3.5 w-3.5" /> {l.bedrooms} {t("common.rooms")}</span>
+            <span className="flex items-center gap-1"><Bath className="h-3.5 w-3.5" /> {l.bathrooms} {t("common.bathrooms")}</span>
+            <span className="flex items-center gap-1"><Ruler className="h-3.5 w-3.5" /> {l.size}m²</span>
+          </div>
+        ) : (
+          <div className="mt-3 flex flex-wrap gap-3 text-xs text-muted-foreground">
+            <span>{l.year}</span>
+            <span>{l.km?.toLocaleString()} {t("common.kilometers")}</span>
+          </div>
+        )}
+        <div className="mt-4 flex items-center justify-between border-t pt-3">
+          <span className="text-lg font-bold text-primary">
+            {l.price.toLocaleString()} <span className="text-xs font-normal">{t("common.currency")}</span>
+          </span>
+          <span className="flex items-center gap-1 text-xs font-semibold text-success">
+            <ShieldCheck className="h-3.5 w-3.5" /> {t("common.verified")}
+          </span>
+        </div>
+      </div>
+    </Link>
+  );
+}

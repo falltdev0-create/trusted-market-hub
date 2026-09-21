@@ -354,4 +354,4 @@ SET FOREIGN_KEY_CHECKS = 1;
 --   python backend/create_admin.py --email admin@moamalati.com --password 'Admin@12345'
 -- for login as a user --email abc@gmail.com --password 'ABC12345@'
 -- (the seeded bcrypt hash above is a placeholder; the script updates it).
--- =============================================================================
+-- ============================================================================= 

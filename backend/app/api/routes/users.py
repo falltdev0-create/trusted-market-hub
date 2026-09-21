@@ -3,11 +3,17 @@ app/api/routes/users.py — مسارات المستخدمين
 """
 
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 import uuid
 
 from app.core.database import get_db
+from app.core.security import (
+    get_user_admin_role,
+    verify_password,
+    hash_password,
+)
 from app.models.models import User
 from app.api.routes.auth import get_current_user
 
@@ -15,8 +21,12 @@ router = APIRouter()
 
 
 @router.get("/me")
-async def get_me(current_user: User = Depends(get_current_user)):
+async def get_me(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
     """بيانات المستخدم الحالي"""
+    admin_role = await get_user_admin_role(current_user, db)
     return {
         "id":          str(current_user.id),
         "email":       current_user.email,
@@ -25,7 +35,8 @@ async def get_me(current_user: User = Depends(get_current_user)):
         "kyc_status":  current_user.kyc_status.value,
         "is_verified": current_user.is_verified,
         "avatar_url":  current_user.avatar_url,
-        "role":        current_user.role.value,
+        "role":        "admin" if admin_role else current_user.role.value,
+        "admin_role":  admin_role,
     }
 
 
@@ -39,7 +50,7 @@ async def get_user_listings(
     result = await db.execute(
         select(Listing)
         .where(
-            Listing.seller_id == uuid.UUID(user_id),
+            Listing.seller_id == user_id,
             Listing.status == ListingStatus.published,
         )
         .order_by(Listing.published_at.desc())
@@ -60,3 +71,40 @@ async def get_user_listings(
         }
         for l in listings
     ]
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+@router.post("/change-password")
+async def change_password(
+    data: ChangePasswordRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    # التحقق من كلمة المرور الحالية
+    if not verify_password(
+        data.current_password,
+        current_user.password_hash,
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="Current password is incorrect",
+        )
+
+    # منع استخدام نفس كلمة المرور
+    if data.current_password == data.new_password:
+        raise HTTPException(
+            status_code=400,
+            detail="New password must be different",
+        )
+
+    # تشفير كلمة المرور الجديدة
+    current_user.password_hash = hash_password(data.new_password)
+
+    await db.commit()
+    await db.refresh(current_user)
+
+    return {
+        "message": "Password changed successfully",
+    }

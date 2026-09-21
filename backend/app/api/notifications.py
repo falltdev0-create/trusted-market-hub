@@ -1,5 +1,5 @@
 """
-app/api/routes/notifications.py — الإشعارات
+src/backend/app/api/routes/notifications.py — الإشعارات
 """
 
 from fastapi import APIRouter, Depends, HTTPException

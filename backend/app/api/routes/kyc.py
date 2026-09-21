@@ -1,14 +1,18 @@
-from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
+# backend/app/api/routes/kyc.py
+from fastapi import APIRouter, Depends, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.services.storage_service import storage_service
-from app.models.models import User, KYCStatus
-from app.api.routes.auth import get_current_user
+from sqlalchemy import text
+import uuid
+import os
+import tempfile
 
+from app.services.storage_service import get_storage_service
+from app.models.models import User, KYCStatus
 from app.core.database import get_db
 from app.api.routes.auth import get_current_user
-from app.models.models import User
+from app.services.kyc.passport_service import passport_service
 
-router = APIRouter(prefix="/kyc", tags=["KYC"])
+router = APIRouter()
 
 
 @router.get("/health")
@@ -23,10 +27,50 @@ async def submit_kyc(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    storage_service = get_storage_service()
     #read the uploaded files
     id_content = await id_document.read()
     selfie_content = await selfie.read()
 
+        # ---------------------------------------------------------
+    # Passport OCR
+    # ---------------------------------------------------------
+
+    temp_path = None
+    passport_data = None
+
+    try:
+        suffix = os.path.splitext(
+            id_document.filename or ".jpg"
+        )[1]
+
+        with tempfile.NamedTemporaryFile(
+            delete=False,
+            suffix=suffix,
+        ) as temp_file:
+            temp_file.write(id_content)
+            temp_path = temp_file.name
+
+        print("\nRunning Passport OCR...")
+
+        passport_data = passport_service.extract_passport_data(
+            temp_path
+        )
+
+        print("\nPassport data extracted:")
+        for key, value in passport_data.items():
+            print(f"{key}: {value}")
+
+    except Exception as e:
+        # لا نوقف عملية التوثيق كاملة لو فشلت قراءة الجواز (مثلاً بيئة
+        # OCR/torch غير جاهزة على السيرفر) — تُحفظ الوثائق ويُكمل المشرف المراجعة يدوياً.
+        print(f"⚠️ Passport OCR failed, continuing without it: {e}")
+
+    finally:
+        if temp_path and os.path.exists(temp_path):
+            os.remove(temp_path)
+
+            
     # upload the documents to storage service
     id_url = await storage_service.upload_kyc_document(
         content=id_content,
@@ -46,6 +90,15 @@ async def submit_kyc(
     current_user.kyc_doc_url = id_url
     current_user.selfie_url = selfie_url
     current_user.kyc_status = KYCStatus.pending
+
+    await db.execute(text("""INSERT INTO kyc_submissions
+        (id, user_id, id_front_url, selfie_url, status, created_at)
+        VALUES (:id, :uid, :doc, :selfie, 'pending', NOW())"""), {
+        "id": str(uuid.uuid4()),
+        "uid": str(current_user.id),
+        "doc": id_url,
+        "selfie": selfie_url,
+    })
 
     await db.commit()
     await db.refresh(current_user)
