@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Backgro
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import List
+import asyncio
 import uuid
 
 from app.core.database import get_db, AsyncSessionLocal
@@ -15,6 +16,7 @@ from app.core.dynamic_settings import get_dynamic_setting
 from app.models.models import Listing, ListingImage, ListingStatus, ConditionGrade
 from app.services.storage_service import get_storage_service
 from app.services.ai_service import get_ai_service
+from app.services.image_quality import check_images, format_problems
 from app.api.routes.auth import get_current_user
 from app.models.models import User
 
@@ -53,6 +55,7 @@ async def upload_listing_images(
 
     # Validate & read all images first
     images_data: List[tuple] = []
+    content_types: List[str] = []
     for img in images:
         if img.content_type not in ALLOWED_TYPES:
             raise HTTPException(422, f"نوع الملف {img.content_type} غير مدعوم")
@@ -60,6 +63,18 @@ async def upload_listing_images(
         if len(content) > MAX_IMAGE_SIZE:
             raise HTTPException(422, f"الصورة {img.filename} تتجاوز 20 ميجابايت")
         images_data.append((content, img.filename))
+        content_types.append(img.content_type)
+
+    # فحص جودة الصور (خفيف، بلا نماذج) قبل التخزين والتحليل
+    quality = await asyncio.to_thread(
+        check_images, [(d[0], ct) for d, ct in zip(images_data, content_types)]
+    )
+    if not quality["ok"]:
+        raise HTTPException(
+            422,
+            "بعض الصور لا تصلح للتحليل، استبدلها وأعد المحاولة:\n"
+            + format_problems(quality["problems"]),
+        )
 
     # Upload to storage
     image_urls = []
@@ -105,10 +120,12 @@ async def upload_listing_images(
                                        .get(listing_type_value, {}) \
                                        .get(grade.value, cap)
 
-                bg_listing.condition_grade  = grade
-                bg_listing.condition_score  = ai_result["score"]
+                # نموذج غير متاح/غير مدرَّب: لا نخزّن درجة أو سقف سعر مختلقين، ويقيّمها المشرف
+                needs_review = bool(ai_result.get("needs_review"))
+                bg_listing.condition_grade  = None if needs_review else grade
+                bg_listing.condition_score  = None if needs_review else ai_result["score"]
                 bg_listing.condition_report = ai_result
-                bg_listing.price_max_limit  = cap
+                bg_listing.price_max_limit  = None if needs_review else cap
                 bg_listing.status           = ListingStatus.condition_assessed
                 await bg_db.commit()
             print(f"✅ AI assessed {listing_id}: {grade.value} ({ai_result['score']})")
@@ -136,6 +153,18 @@ async def get_condition_result(listing_id: str, db: AsyncSession = Depends(get_d
 
     if listing.status == ListingStatus.images_uploaded:
         return {"status": "processing", "message": "جاري التحليل..."}
+    report = listing.condition_report or {}
+    if report.get("needs_review"):
+        return {
+            "status":          "done",
+            "needs_review":    True,
+            "condition_grade": None,
+            "condition_score": None,
+            "price_max_limit": None,
+            "price_tier":      listing.price_tier,
+            "currency":        listing.currency,
+            "report":          report,
+        }
     if not listing.condition_grade:
         return {"status": "pending"}
 
@@ -143,7 +172,7 @@ async def get_condition_result(listing_id: str, db: AsyncSession = Depends(get_d
         "status":          "done",
         "condition_grade": listing.condition_grade.value,
         "condition_score": listing.condition_score,
-        "price_max_limit": None,
+        "price_max_limit": listing.price_max_limit,
         "price_tier":      listing.price_tier,
         "currency":        listing.currency,
         "report":          listing.condition_report,

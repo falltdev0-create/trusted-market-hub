@@ -109,7 +109,7 @@ class _OCR:
             try:
                 import numpy as np
                 results = reader.readtext(np.array(img), detail=0)
-                return " ".join(results)
+                return "\n".join(results)
             except Exception:
                 pass
 
@@ -171,14 +171,24 @@ class DocumentMatcher:
             "model_version":  "v2-easyocr-levenshtein",
         }
 
+    # تسميات حقل الاسم (بعد التطبيع). أضف هنا ما يظهر فعلاً في وثائقكم. الأطول أولاً.
+    _NAME_LABELS = ("اسم المالك", "الاسم الكامل", "الاسم")
+
     @staticmethod
     def _extract_name(text: str) -> str:
-        norm = ArabicNormalizer.normalize(text)
-        m = re.search(r'(?:الاسم|الاسم الكامل|اسم المالك)[:\s]+([^\n\d،,]{5,60})', norm)
-        if m:
-            return m.group(1).strip()
-        for line in norm.splitlines():
-            words = [w for w in line.split() if re.match(r'^[\u0600-\u06FF]{3,}$', w)]
-            if 2 <= len(words) <= 6:
-                return " ".join(words)
+        # التطبيع سطراً بسطر: ArabicNormalizer.normalize يدمج الأسطر كلها في سطر واحد
+        lines = [ArabicNormalizer.normalize(l) for l in text.splitlines()]
+        lines = [l for l in lines if l]
+        for i, line in enumerate(lines):
+            for label in DocumentMatcher._NAME_LABELS:
+                m = re.search(r'(?:^|\s)' + re.escape(label) + r'(?:\s|:|$)', line)
+                if not m:
+                    continue
+                rest = line[m.end():].strip(" :-")
+                if not rest and i + 1 < len(lines):
+                    rest = lines[i + 1]          # القيمة في السطر التالي
+                words = [w for w in rest.split() if re.match(r'^[\u0600-\u06FF]{2,}$', w)]
+                if 2 <= len(words) <= 6:
+                    return " ".join(words)
+        # لا نخمّن اسماً من ترويسة الوثيقة: غياب التسمية → مراجعة يدوية
         return ""

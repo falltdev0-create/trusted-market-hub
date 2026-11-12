@@ -378,8 +378,11 @@ class ConditionPredictor:
         for tfm in TTA_TRANSFORMS:
             t = tfm(img).unsqueeze(0).to(self.device)
             with torch.no_grad():
+                feat = self.model.attention(self.model.features(t))
+                feat = torch.flatten(self.model.avgpool(feat), 1)
+                temp = self.model.temperature.clamp(0.5, 5.0)
                 mc_probs = torch.stack([
-                    torch.softmax(self.model(t), dim=1)
+                    torch.softmax(self.model.classifier(feat) / temp, dim=1)
                     for _ in range(self.MC_SAMPLES)
                 ]).mean(0)
             all_probs.append(mc_probs.cpu().numpy()[0])

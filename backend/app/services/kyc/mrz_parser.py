@@ -214,10 +214,10 @@ def parse_passport_mrz(line1: str, line2: str) -> dict:
         "nationality": nationality,
         "date_of_birth": parse_mrz_date(birth_date_raw),
         "sex": sex,
-        "date_of_expiry": parse_mrz_date(expiry_date_raw),
+        "date_of_expiry": parse_mrz_date(expiry_date_raw, expiry=True),
     }
 
-def parse_mrz_date(value: str) -> str | None:
+def parse_mrz_date(value: str, expiry: bool = False) -> str | None:
     if len(value) != 6 or not value.isdigit():
         return None
 
@@ -229,7 +229,8 @@ def parse_mrz_date(value: str) -> str | None:
     # 00-26 -> 2000-2026
     # 27-99 -> 1927-1999
 
-    if year <= 26:
+    # تاريخ الانتهاء دائماً في القرن الحالي (جواز ينتهي 2030 يُكتب 30 وليس 1930)
+    if expiry or year <= 26:
         full_year = 2000 + year
     else:
         full_year = 1900 + year

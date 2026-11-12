@@ -187,6 +187,15 @@ function ListingsTab() {
                     <div className="text-sm text-muted-foreground">
                       {l.city} • {l.category} • {Number(l.price ?? 0).toLocaleString()} جنيه
                     </div>
+                    {l.docs_ai && (
+                      <div className="mt-2 text-sm">
+                        الوثائق: {l.docs_ai.ai_available === false ? "لم تُفحص آلياً — مراجعة يدوية" : l.docs_ai.ai_passed ? "اجتازت الفحص الآلي" : "—"}
+                        {l.docs_ai.match_score != null ? ` (${Math.round(l.docs_ai.match_score)}%)` : ""}
+                      </div>
+                    )}
+                    {l.condition_needs_review && (
+                      <div className="mt-1 text-sm text-warning">حالة العقار لم تُقيَّم آلياً — يلزم تقييمك</div>
+                    )}
                   </div>
                   <button
                     disabled={busy === l.id}
@@ -314,6 +323,18 @@ function KycTab() {
                   <div className="flex-1">
                     <div className="font-bold">{r.user?.full_name ?? "—"}</div>
                     <div className="text-sm text-muted-foreground">{r.user?.email}</div>
+                    {r.ai && (
+                      <div className="mt-3 space-y-1 rounded-lg bg-secondary/40 p-3 text-sm">
+                        <div>
+                          الوجه: {r.ai.face?.verdict === "match" ? "مطابق" : r.ai.face?.verdict === "no_match" ? "غير مؤكد" : "لم يُفحص"}
+                          {r.ai.face?.score != null ? ` (${Number(r.ai.face.score).toFixed(2)})` : ""}
+                        </div>
+                        {r.ai.passport && (
+                          <div>الجواز: {r.ai.passport.surname} {r.ai.passport.given_names} — ينتهي {r.ai.passport.date_of_expiry ?? "—"}</div>
+                        )}
+                        {r.ai.flags?.length > 0 && <div className="text-warning">تنبيهات: {r.ai.flags.join("، ")}</div>}
+                      </div>
+                    )}
                     <div className="mt-6 flex gap-2">
                       <button onClick={() => decide(r.id, "approved")} className="rounded-lg bg-success px-4 py-2 text-sm font-bold text-white">قبول</button>
                       <button onClick={() => decide(r.id, "rejected", "المستندات غير واضحة")} className="rounded-lg bg-destructive px-4 py-2 text-sm font-bold text-white">رفض</button>

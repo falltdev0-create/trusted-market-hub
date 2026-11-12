@@ -9,12 +9,14 @@ from sqlalchemy import select, func, update, delete, desc
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime
+import json
 import uuid
 import logging
 
 from app.core.database import get_db
 from app.models.models import (
     Listing, ListingStatus, ListingVerification, User, UserRole, Notification,
+    DocMatchStatus,
 )
 from app.api.routes.auth import get_current_user
 
@@ -204,12 +206,35 @@ async def pending_listings(
         .order_by(Listing.updated_at.asc())
         .offset((page - 1) * page_size).limit(page_size)
     )).scalars().all()
+    ids = [str(l.id) for l in rows]
+    verifs = {}
+    if ids:
+        for v in (await db.execute(
+            select(ListingVerification).where(ListingVerification.listing_id.in_(ids))
+        )).scalars().all():
+            verifs[str(v.listing_id)] = v
+
+    def _docs_ai(l):
+        v = verifs.get(str(l.id))
+        if not v:
+            return None
+        d = v.match_details or {}
+        return {
+            "match_status": v.match_status.value if v.match_status else None,
+            "match_score": v.match_score,
+            "ai_passed": d.get("ai_passed"),
+            "ai_available": d.get("ai_available", True),
+            "issues": d.get("issues") or [],
+        }
+
     return [{
         "id": str(l.id), "title": l.title,
         "category": l.category.value if l.category else None,
         "listing_type": l.listing_type.value if l.listing_type else None,
         "price": l.price, "city": l.city,
         "condition_grade": l.condition_grade.value if l.condition_grade else None,
+        "condition_needs_review": bool((l.condition_report or {}).get("needs_review")),
+        "docs_ai": _docs_ai(l),
         "created_at": l.created_at.isoformat() if l.created_at else None,
     } for l in rows]
 
@@ -241,6 +266,7 @@ async def full_review(
             "ownership_doc_url": verif.ownership_doc_url if verif else None,
             "match_score": verif.match_score if verif else None,
             "match_status": verif.match_status.value if verif and verif.match_status else None,
+            "match_details": verif.match_details if verif else None,
         } if verif else None,
     }
 
@@ -254,6 +280,17 @@ async def approve_listing(
     listing = (await db.execute(select(Listing).where(Listing.id == body.listing_id))).scalar_one_or_none()
     if not listing:
         raise HTTPException(404)
+    if listing.status != ListingStatus.pending_review:
+        raise HTTPException(409, "الإعلان ليس بانتظار المراجعة")
+    verif = (await db.execute(
+        select(ListingVerification).where(ListingVerification.listing_id == body.listing_id)
+    )).scalar_one_or_none()
+    if not verif or verif.match_status == DocMatchStatus.rejected:
+        raise HTTPException(409, "لا يمكن قبول إعلان وثائقه غير مقبولة")
+    verif.match_status = DocMatchStatus.approved   # تأكيد المشرف النهائي للوثائق
+    verif.reviewed_by = str(admin.id)
+    verif.reviewed_at = datetime.utcnow()
+    verif.verified_at = datetime.utcnow()
     listing.status = ListingStatus.published
     listing.published_at = datetime.utcnow()
     db.add(Notification(
@@ -354,6 +391,7 @@ async def list_kyc(
     try:
         rows = (await db.execute(
             text("""SELECT k.id, k.user_id, k.id_front_url, k.selfie_url, k.status,
+                           k.national_id, k.match_score, k.ai_report_json,
                            u.full_name, u.email
                     FROM kyc_submissions k
                     LEFT JOIN users u ON u.id = k.user_id
@@ -361,13 +399,26 @@ async def list_kyc(
                     ORDER BY k.created_at DESC LIMIT 100"""),
             {"s": status},
         )).mappings().all()
-        return [{
-            "id": r["id"], "user_id": r["user_id"],
-            "id_front_url": r["id_front_url"], "selfie_url": r["selfie_url"],
-            "status": r["status"],
-            "user": {"full_name": r["full_name"], "email": r["email"]},
-        } for r in rows]
+        out = []
+        for r in rows:
+            ai = r["ai_report_json"]
+            if isinstance(ai, (str, bytes)):
+                try:
+                    ai = json.loads(ai)
+                except Exception:
+                    ai = None
+            out.append({
+                "id": r["id"], "user_id": r["user_id"],
+                "id_front_url": r["id_front_url"], "selfie_url": r["selfie_url"],
+                "status": r["status"],
+                "national_id": r["national_id"],
+                "match_score": float(r["match_score"]) if r["match_score"] is not None else None,
+                "ai": ai,
+                "user": {"full_name": r["full_name"], "email": r["email"]},
+            })
+        return out
     except Exception:
+        log.exception("list_kyc failed")
         return []
 
 

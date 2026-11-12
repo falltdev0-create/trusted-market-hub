@@ -24,9 +24,14 @@ function UploadImages() {
   const [stepIdx, setStepIdx] = useState(0);
   const fileRef = useRef<HTMLInputElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [needsReview, setNeedsReview] = useState(false);
   const nav = useNavigate();
 
-  useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current); }, []);
+  useEffect(() => () => {
+    if (pollRef.current) clearInterval(pollRef.current);
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+  }, []);
 
   function onFiles(picked: FileList | null) {
     if (!picked) return;
@@ -67,6 +72,14 @@ function UploadImages() {
         if (data?.status === "done") {
           clearInterval(stepTimer);
           if (pollRef.current) clearInterval(pollRef.current);
+          if (timeoutRef.current) clearTimeout(timeoutRef.current);
+          if (data.needs_review) {
+            // لا درجة مختلقة: الصور سليمة والتقييم عند المشرف
+            setNeedsReview(true);
+            setCondition(undefined as any, "good", data.price_max_limit ?? 1000000);
+            setPhase("done");
+            return;
+          }
           const grade = (data.condition_grade ?? "good") as any;
           finishWithResult(
             Math.round((data.condition_score ?? 0.7) * 100),
@@ -81,17 +94,12 @@ function UploadImages() {
     pollRef.current = setInterval(poll, 3000);
     poll();
 
-    // Safety timeout 90s — fall back to simulated result
-    setTimeout(() => {
-      if (pollRef.current) {
-        clearInterval(pollRef.current);
-        clearInterval(stepTimer);
-        if (phase !== "done") {
-          const s = 65 + Math.floor(Math.random() * 30);
-          const grade = s >= 80 ? "excellent" : s >= 60 ? "good" : "poor";
-          finishWithResult(s, grade, grade === "excellent" ? 3500000 : grade === "good" ? 1800000 : 800000);
-        }
-      }
+    // مهلة 90 ثانية: بدون نتيجة مختلقة، رسالة صريحة ثم العودة للبداية
+    timeoutRef.current = setTimeout(() => {
+      if (pollRef.current) clearInterval(pollRef.current);
+      clearInterval(stepTimer);
+      toast.error("تأخر تحليل الصور. حاول مرة أخرى بعد قليل.");
+      setPhase("idle");
     }, 90000);
   }
 
@@ -165,7 +173,7 @@ function UploadImages() {
   }
 
   if (phase === "done") {
-    const grade = score >= 80 ? "excellent" : score >= 60 ? "good" : "poor";
+    const grade = needsReview ? "good" : score >= 80 ? "excellent" : score >= 60 ? "good" : "poor";
     const colors = {
       excellent: "from-success/20 to-success/5 border-success/30 text-success",
       good: "from-warning/20 to-warning/5 border-warning/30 text-warning",
@@ -180,21 +188,29 @@ function UploadImages() {
             <Bot className="h-8 w-8" />
             <h2 className="text-2xl font-bold text-foreground">{t("upload.result")}</h2>
           </div>
-          <div className="mt-8">
-            <div className="flex items-center justify-between text-sm font-semibold text-foreground">
-              <span>{t("upload.condition")}</span>
-              <span>{score}/100</span>
+          {needsReview ? (
+            <div className="mt-8 rounded-xl bg-card p-4 text-sm text-foreground">
+              تم رفع الصور بنجاح. تقييم حالة العقار سيتم من قِبل المشرف أثناء المراجعة.
             </div>
-            <div className="mt-2 h-3 overflow-hidden rounded-full bg-card">
-              <div className="h-full rounded-full bg-current transition-all duration-1000" style={{ width: `${score}%` }} />
-            </div>
-          </div>
-          <div className="mt-6 flex items-center gap-2 text-xl font-bold">
-            <Star className="h-5 w-5 fill-current" />
-            <Star className="h-5 w-5 fill-current" />
-            <Star className="h-5 w-5 fill-current" />
-            <span className="ms-2">{labels}</span>
-          </div>
+          ) : (
+            <>
+              <div className="mt-8">
+                <div className="flex items-center justify-between text-sm font-semibold text-foreground">
+                  <span>{t("upload.condition")}</span>
+                  <span>{score}/100</span>
+                </div>
+                <div className="mt-2 h-3 overflow-hidden rounded-full bg-card">
+                  <div className="h-full rounded-full bg-current transition-all duration-1000" style={{ width: `${score}%` }} />
+                </div>
+              </div>
+              <div className="mt-6 flex items-center gap-2 text-xl font-bold">
+                <Star className="h-5 w-5 fill-current" />
+                <Star className="h-5 w-5 fill-current" />
+                <Star className="h-5 w-5 fill-current" />
+                <span className="ms-2">{labels}</span>
+              </div>
+            </>
+          )}
           <div className="mt-6 rounded-xl bg-card p-4">
             <p className="text-sm text-muted-foreground">{t("upload.price")}</p>
             <p className="text-lg font-bold text-primary">{t("upload.noPriceLimit")}</p>

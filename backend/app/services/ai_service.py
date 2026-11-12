@@ -11,6 +11,17 @@ import io
 import logging
 
 from app.core.config import settings
+import sys
+from pathlib import Path
+
+_ROOT = Path(__file__).resolve().parents[3]
+if str(_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ROOT))
+
+
+def _abs(p: str) -> str:
+    q = Path(p)
+    return str(q if q.is_absolute() else _ROOT / q)
 
 log = logging.getLogger("ai_service")
 
@@ -22,6 +33,8 @@ class AIService:
         self._condition = None
         self._document = None
         self._pricing = None
+        # نموذج ثقيل واحد في كل مرة (condition + document) لمنع تراكم الذاكرة
+        self._heavy_sem = asyncio.Semaphore(1)
 
     # ── lazy loaders ─────────────────────────────────────────────────────
     @property
@@ -29,7 +42,7 @@ class AIService:
         if self._condition is None:
             try:
                 from ai_models.condition_model.predictor import ConditionPredictor
-                self._condition = ConditionPredictor(settings.CONDITION_MODEL_PATH)
+                self._condition = ConditionPredictor(_abs(settings.CONDITION_MODEL_PATH))
                 log.info("✅ ConditionPredictor loaded")
             except Exception as e:
                 log.warning("Condition model unavailable, using heuristic: %s", e)
@@ -53,7 +66,7 @@ class AIService:
         if self._pricing is None:
             try:
                 from ai_models.pricing_model.predictor import PricingPredictor
-                self._pricing = PricingPredictor(settings.PRICING_MODEL_PATH)
+                self._pricing = PricingPredictor(_abs(settings.PRICING_MODEL_PATH))
                 log.info("✅ PricingPredictor loaded")
             except Exception as e:
                 log.warning("Pricing model unavailable, using heuristic: %s", e)
@@ -71,15 +84,20 @@ class AIService:
         if isinstance(images, str):
             image_bytes = await _fetch_bytes(images)
             images = [image_bytes] if image_bytes else []
-        result = await loop.run_in_executor(
-            None, self.condition.predict, images, category
-        )
-        # normalize
+        async with self._heavy_sem:
+            result = await loop.run_in_executor(
+                None, self.condition.predict, images, category
+            )
+        # normalize: الواجهة تتوقع 0..1 (النموذج الحقيقي يرجع 10..100)
+        score = float(result.get("score", 0.5))
+        if score > 1.0:
+            score /= 100.0
         return {
             "grade": result.get("grade", "good"),
-            "score": float(result.get("score", 0.7)),
+            "score": score,
             "report": result.get("report") or result,
             "model": getattr(self.condition, "model_name", "heuristic"),
+            "needs_review": bool(result.get("needs_review", False)),
         }
 
     async def verify_document(
@@ -88,12 +106,13 @@ class AIService:
         document_type: str = "ownership",
     ) -> Dict[str, Any]:
         loop = asyncio.get_event_loop()
-        result = await loop.run_in_executor(
-            None, self.document.verify, document_url, document_type
-        )
+        async with self._heavy_sem:
+            result = await loop.run_in_executor(
+                None, self.document.verify, document_url, document_type
+            )
         return {
-            "match_status": result.get("match_status", "approved"),
-            "match_score": float(result.get("match_score", 0.85)),
+            "match_status": result.get("match_status", "pending"),
+            "match_score": float(result.get("match_score", 0.0)),
             "extracted_text": result.get("extracted_text"),
             "model": getattr(self.document, "model_name", "heuristic"),
         }
@@ -105,9 +124,10 @@ class AIService:
         category: str = "house",
     ) -> Dict[str, Any]:
         loop = asyncio.get_event_loop()
-        result = await loop.run_in_executor(
-            None, self.document.match, id_doc_bytes, ownership_doc_bytes, category
-        )
+        async with self._heavy_sem:
+            result = await loop.run_in_executor(
+                None, self.document.match, id_doc_bytes, ownership_doc_bytes, category
+            )
         return result
 
     async def estimate_price(
@@ -147,27 +167,33 @@ _DEFAULT_TIER_THRESHOLDS = {
 
 
 class _HeuristicCondition:
-    model_name = "heuristic-condition"
+    """يعمل فقط عند غياب الأوزان: درجة محايدة مع علامة مراجعة (وليس تقديراً مبنياً على عدد الصور)."""
+    model_name = "unavailable-condition"
 
     def predict(self, images, category="house"):
-        n = len(images) if hasattr(images, "__len__") else 1
-        score = min(0.95, 0.55 + 0.03 * n)
-        grade = "excellent" if score >= 0.8 else "good" if score >= 0.6 else "poor"
         return {
-            "grade": grade,
-            "score": score,
-            "report": {"aspects": {"overall": int(score * 100), "images_quality": int(score * 100)}},
+            "grade": "good",
+            "score": 0.5,
+            "needs_review": True,
+            "report": {"note": "نموذج التقييم غير متاح — يلزم تقييم المشرف"},
         }
 
 
 class _HeuristicDocument:
-    model_name = "heuristic-document"
+    """fail-closed: غياب النموذج لا يعني القبول أبداً."""
+    model_name = "unavailable-document"
 
     def verify(self, url: str, doc_type: str = "ownership"):
-        return {"match_status": "approved", "match_score": 0.85, "extracted_text": None}
+        return {"match_status": "pending", "match_score": 0.0, "extracted_text": None}
 
     def match(self, id_bytes, ownership_bytes, category="house"):
-        return {"match_score": 0.86, "matched_fields": ["name", "national_id"], "issues": []}
+        return {
+            "match_score": 0.0,
+            "passed": False,
+            "needs_manual_review": True,
+            "matched_fields": {},
+            "issues": ["نموذج المطابقة غير متاح — تحويل للمراجعة اليدوية"],
+        }
 
 
 class _HeuristicPricing:

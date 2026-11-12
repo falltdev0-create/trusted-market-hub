@@ -30,7 +30,8 @@ function UploadDocs() {
         const fd = new FormData();
         fd.append("id_document", idFile);
         fd.append("ownership_document", ownFile);
-        await verificationApi.uploadDocs(draft.id, fd);
+        const res = await verificationApi.uploadDocs(draft.id, fd);
+        if (res?.data?.message) toast.success(res.data.message);
       } else {
         await new Promise((r) => setTimeout(r, 2200));
       }

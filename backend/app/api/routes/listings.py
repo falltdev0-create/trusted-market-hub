@@ -23,10 +23,21 @@ from app.models.models import (
     ListingType,
     Notification,
     User,
+    ListingVerification,
+    DocMatchStatus,
 )
 from app.services.ai_service import get_ai_service
 
 router = APIRouter()
+
+
+async def _require_docs_not_rejected(db: AsyncSession, listing_id: str) -> None:
+    """لا سعر ولا إرسال للمراجعة بدون وثائق مرفوعة وغير مرفوضة."""
+    verification = (await db.execute(
+        select(ListingVerification).where(ListingVerification.listing_id == listing_id)
+    )).scalar_one_or_none()
+    if not verification or verification.match_status == DocMatchStatus.rejected:
+        raise HTTPException(409, "يجب رفع وثائق مقبولة قبل المتابعة")
 
 
 class ListingCreateIn(BaseModel):
@@ -270,6 +281,7 @@ async def set_price(
         raise HTTPException(403, "غير مصرح")
     if body.price <= 0:
         raise HTTPException(400, "أدخل سعراً صحيحاً")
+    await _require_docs_not_rejected(db, listing_id)
 
     ai = get_ai_service()
     listing.price = body.price
@@ -290,6 +302,7 @@ async def submit_for_review(
         raise HTTPException(403, "غير مصرح")
     if not listing.price:
         raise HTTPException(400, "يجب تحديد السعر قبل إرسال الإعلان")
+    await _require_docs_not_rejected(db, listing_id)
     listing.status = ListingStatus.pending_review
     db.add(Notification(
         id=str(uuid.uuid4()),
@@ -312,9 +325,5 @@ async def publish_listing(
     listing = await db.get(Listing, listing_id)
     if not listing or str(listing.seller_id) != str(current_user.id):
         raise HTTPException(403, "غير مصرح")
-    if listing.status not in [ListingStatus.price_set, ListingStatus.pending_review]:
-        raise HTTPException(400, f"لا يمكن نشر الإعلان من حالة {listing.status.value}")
-    listing.status = ListingStatus.published
-    listing.published_at = datetime.utcnow()
-    await db.commit()
-    return {"status": listing.status.value, "published_at": listing.published_at.isoformat()}
+    # النشر يتم فقط عبر موافقة المشرف (/admin/approve-listing)
+    raise HTTPException(403, "النشر يتم بعد موافقة المشرف")

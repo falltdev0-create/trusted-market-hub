@@ -34,8 +34,8 @@ function VerificationPage() {
       return usersApi.submitKYC(formData);
     },
 
-    onSuccess: () => {
-      toast.success(t("verification.submitted"));
+    onSuccess: (res: any) => {
+      toast.success(res?.data?.message ?? t("verification.submitted"));
 
       navigate({
         to: "/dashboard",
